@@ -33,7 +33,7 @@ Example `.bat` script:
 
 ### Trigger file handling
 
-Required metadata fields are configured in the `.env` file. See `env.example` for example fields. 
+Required metadata fields are configured in the `.env` file. See `env.example` for example fields. Additional fields can be included, but expects at least these.
 
 The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
 - Does the folder exist?
@@ -43,6 +43,18 @@ The `TriggerFile` class expects a `.ok` file submitted as a path. It performs ba
 - Are all the values set?
 
 Any failing conditions are tracked and the errors written to a `.error` file along with a default metadata form.
+
+#### Existing bags
+
+Existing bags can be processed with the trigger file. To use the `.ok` file metadata, delete the `bagi-info.txt` file. Otherwise it will use the bag metadata.
+
+### Adding UUIDs
+
+A UUID is added to each bag in `External-Identifier` field. The `MetadataChecker` class looks for existing UUIDs and will only add one if one is not already parsed.
+
+### Copying to output directory
+
+Copying is handled in the runner script (`stash_it.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`.
 
 ### Metadata model
 
