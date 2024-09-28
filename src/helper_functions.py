@@ -8,6 +8,8 @@ class TriggerFile:
         self
         self.filename = filename
         self.name, self.status = os.path.splitext(filename)
+        if not self.status == ".ok":
+            raise ValueError("Only processes .ok files!")
         self.metadata = None
         self.required_headers = headers
 

@@ -62,3 +62,8 @@ def test_error_file_creation(invalid_trigger_file, tmp_path):
     tf.validate()
     file = tmp_path / "invalid_trigger.error"
     assert os.path.isfile(file)
+
+def test_not_ok_file_raises_exception(tmp_path):
+    file = tmp_path / "error_raise.txt"
+    with pytest.raises(ValueError):
+        tf = TriggerFile(file)
