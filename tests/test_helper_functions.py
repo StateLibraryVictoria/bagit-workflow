@@ -4,13 +4,12 @@ import pytest
 ## Test TriggerFile
 
 ## Expected headers are configured using .env. Tests are based on currently expected ones:
-# ["record-set", "Source-Organization","Contact-Name","External-Description","Internal-Sender-Identifier"]
+# ["Source-Organization","Contact-Name","External-Description","Internal-Sender-Identifier"]
 
 @pytest.fixture
 def valid_trigger_file(tmp_path):
     file = tmp_path / "valid_trigger.ok"
-    data = {"record-set" : "Personal",
-            "Source-Organization" : "Home",
+    data = {"Source-Organization" : "Home",
             "Contact-Name" : "Susannah Bourke",
             "External-Description" : "A test metadata package for a valid transfer.",
             "Internal-Sender-Identifier" : "/path/to/folder",}
@@ -29,14 +28,14 @@ def invalid_trigger_file(tmp_path):
     dir.mkdir()
     file2 = dir / "data.txt"
     file2.write_text("some text")
-    data = {"record-set" : "Personal"}
+    data = {"Source-Organization" : "Home"}
     output = json.dumps(data)
     file.write_text(output)
     yield file
         
 def test_load_metadata(valid_trigger_file):
     tf = TriggerFile(valid_trigger_file)
-    assert tf.get_metadata().get("record-set") == "Personal"
+    assert tf.get_metadata().get("Source-Organization") == "Home"
 
 def test_header_validation_fails(invalid_trigger_file):
     tf = TriggerFile(invalid_trigger_file)
@@ -49,8 +48,7 @@ def test_header_validation_succeeds(valid_trigger_file):
     assert tf.validate() == True
 
 def test_get_metadata(valid_trigger_file):
-    data = {"record-set" : "Personal",
-            "Source-Organization" : "Home",
+    data = {"Source-Organization" : "Home",
             "Contact-Name" : "Susannah Bourke",
             "External-Description" : "A test metadata package for a valid transfer.",
             "Internal-Sender-Identifier" : "/path/to/folder",}

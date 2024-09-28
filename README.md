@@ -26,13 +26,10 @@ Example `.bat` script:
                 call :metadata %var% >%%i.ready))
 
         :metadata
-        echo {
-        echo     "record-set": "add classification",
-        echo     "Source-Organization":"",
-        echo     "Contact-Name":"",
-        echo     "External-Description":"",
-        echo     "Internal-Sender-Identifier": "%var%",
-        echo }
+        echo {"Source-Organization":"",
+        echo "Contact-Name":"",
+        echo "External-Description":"",
+        echo "Internal-Sender-Identifier": "%var%"}
 
 ### Trigger file handling
 
