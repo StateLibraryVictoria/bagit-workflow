@@ -23,6 +23,9 @@ class TriggerFile:
     def get_metadata(self):
         return self.metadata
     
+    def get_directory(self):
+        return self.name
+    
     def validate(self):
         logger.info(f"Verifying transfer: {self.name}")
         errors = []
