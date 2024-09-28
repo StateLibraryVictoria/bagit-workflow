@@ -103,3 +103,53 @@ class TriggerFile:
             else:
                 data.update({key: "Input this value."})
         return json.dumps(data)
+
+
+class MetadataChecker:
+    def __init__(self):
+        self.required_headers = headers
+
+    def validate(self, metadata):
+        if self._valid_headers(metadata):
+            return self._has_uuid(metadata)
+        else:
+            raise ValueError("Incorrect header config.")
+
+    def _has_uuid(self, metadata):
+        parsed_uuid = []
+        mids = metadata.get("External-Identifier")
+        ids = []
+        if type(ids) == str:
+            ids = list(ids)
+        if mids is not None:
+            if type(mids) != list:
+                ids.append(mids)
+            else:
+                ids = mids
+            for id in ids:
+                try:
+                    test_uuid = uuid.UUID(id)
+                    parsed_uuid.append(test_uuid)
+                    logger.debug(f"ID {id} is a uuid")
+                except Exception as e:
+                    logger.debug(f"Failed to parse uuid from {id}")
+        if len(parsed_uuid) == 0:
+            transfer_id = str(uuid.uuid4())
+            if ids is not None:
+                ids.append(transfer_id)
+            else:
+                ids = transfer_id
+            metadata.update({"External-Identifier": ids})
+            logger.info(f"Adding UUID to metadata: {', '.join(ids)}")
+        return metadata
+
+    def _valid_headers(self, metadata):
+        if metadata is None:
+            return False
+        headers = list(metadata.keys())
+        valid_headers = True
+        for header in self.required_headers:
+            if header not in headers:
+                valid_headers = False
+                logger.warning(f"Missing mandatory header: {header}")
+        return valid_headers

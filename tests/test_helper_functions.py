@@ -8,6 +8,17 @@ import pytest
 
 
 @pytest.fixture
+def valid_metadata_no_uuid():
+    data = {
+        "Source-Organization": "Home",
+        "Contact-Name": "Susannah Bourke",
+        "External-Description": "A test metadata package for a valid transfer.",
+        "Internal-Sender-Identifier": "/path/to/folder",
+    }
+    yield data
+
+
+@pytest.fixture
 def valid_trigger_file(tmp_path):
     file = tmp_path / "valid_trigger.ok"
     data = {
@@ -55,13 +66,8 @@ def test_header_validation_succeeds(valid_trigger_file):
     assert tf.validate() == True
 
 
-def test_get_metadata(valid_trigger_file):
-    data = {
-        "Source-Organization": "Home",
-        "Contact-Name": "Susannah Bourke",
-        "External-Description": "A test metadata package for a valid transfer.",
-        "Internal-Sender-Identifier": "/path/to/folder",
-    }
+def test_get_metadata(valid_trigger_file, valid_metadata_no_uuid):
+    data = valid_metadata_no_uuid
     tf = TriggerFile(valid_trigger_file)
     assert data == tf.get_metadata()
 
@@ -77,3 +83,30 @@ def test_not_ok_file_raises_exception(tmp_path):
     file = tmp_path / "error_raise.txt"
     with pytest.raises(ValueError):
         tf = TriggerFile(file)
+
+
+def test_add_uuid_if_not_present(valid_metadata_no_uuid):
+    data = valid_metadata_no_uuid
+    mc = MetadataChecker()
+    metadata_with_uuid = mc.validate(data)
+    result = metadata_with_uuid.get("External-Identifier")
+    assert result is not None
+
+
+def test_add_uuid_has_other_ids(valid_metadata_no_uuid):
+    data = valid_metadata_no_uuid
+    data.update({"External-Identifier": "Some other id"})
+    mc = MetadataChecker()
+    metadata_with_uuid = mc.validate(data)
+    result = metadata_with_uuid.get("External-Identifier")
+    assert len(result) == 2
+
+
+def test_dont_add_uuid_if_exists(valid_metadata_no_uuid):
+    data = valid_metadata_no_uuid
+    data.update({"External-Identifier": str(uuid.uuid4())})
+    mc = MetadataChecker()
+    metadata_with_uuid = mc.validate(data)
+    result = metadata_with_uuid.get("External-Identifier")
+    result_uuid = uuid.UUID(result)
+    assert type(result_uuid) == uuid.UUID
