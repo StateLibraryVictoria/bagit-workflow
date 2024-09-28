@@ -12,18 +12,15 @@ class TriggerFile:
         self.name, self.status = os.path.splitext(filename)
         if not self.status == ".ok":
             raise ValueError("Only processes .ok files!")
-        self.metadata = None
+        self.metadata = self.load_metadata()
         self.required_headers = headers
 
     def load_metadata(self):
         with open(self.filename) as f:
             metadata = json.loads(f.read())
-            self.metadata = metadata
+        return metadata
             
     def get_metadata(self):
-        if self.metadata == None:
-            print(self.required_headers)
-            self.load_metadata()
         return self.metadata
     
     def validate(self):
@@ -39,14 +36,18 @@ class TriggerFile:
             errors.append("Error parsing metadata. Are your values filled in?")
 
         if len(errors) == 0:
+            logger.info(f"Transfer verified: {self.name}")
             return True
         else:
             logger.info(f"Issues identified while processing {self.filename}: {' '.join(errors)}")
             self._set_status(".error")
-            with open(self.filename, 'w') as f:
-                for error in errors:
-                    f.write(error + "\n")
-                f.write(self._build_default_metadata())
+            try:
+                with open(self.filename, 'w') as f:
+                    for error in errors:
+                        f.write(error + "\n")
+                    f.write(self._build_default_metadata())
+            except PermissionError as e:
+                logger.error(f"Error writing to file: {e}")
             return False
 
     def _valid_headers(self):
@@ -55,11 +56,16 @@ class TriggerFile:
         headers = list(self.metadata.keys())
         headers.sort()
         self.required_headers.sort()
-        return headers == self.required_headers
-    
+        if headers != self.required_headers:
+            logger.warning(f"Headers don't match config with headers: {', '.join(headers)}; required: {', '.join(self.required_headers)}")
+            return False
+        else:
+            return True
+        
     def _set_status(self, new_status):
         new_name = f"{self.name}{new_status}"
         os.rename(self.filename, new_name)
+        logger.info(f"Renaming file to .error file: {new_name}")
         self.status = new_status
         self.filename = new_name
     
@@ -71,12 +77,12 @@ class TriggerFile:
     
     def _check_metadata(self):
         if self.metadata == None:
-            self.load_metadata()
-        if self.metadata == None:
+            logger.error("Metadata could not be parsed from file.")
             return False
         for key in self.required_headers:
             result = self.metadata.get(key)
             if result == None or result == "" or result == "Input this value.":
+                logger.info(f"Metadata tag {key} was not parsed.")
                 return False
         return True
     
