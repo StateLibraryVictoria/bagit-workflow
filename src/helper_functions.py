@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import bagit
 import logging
 
 headers = json.loads(os.getenv("REQUIRED_HEADERS"))
@@ -18,8 +19,16 @@ class TriggerFile:
         self.required_headers = headers
 
     def load_metadata(self):
-        with open(self.filename) as f:
-            metadata = json.loads(f.read())
+        bag_info = os.path.join(self.name, "bag-info.txt")
+        if os.path.isfile(bag_info):
+            logging.info(
+                "Existing bag identified. Will use bag metadata. Delete bag-info.txt to run a bag with supplied metadata."
+            )
+            bag = bagit.Bag(self.name)
+            metadata = bag.info
+        else:
+            with open(self.filename) as f:
+                metadata = json.loads(f.read())
         return metadata
 
     def get_metadata(self):
@@ -61,15 +70,12 @@ class TriggerFile:
         if self.metadata is None:
             return False
         headers = list(self.metadata.keys())
-        headers.sort()
-        self.required_headers.sort()
-        if headers != self.required_headers:
-            logger.warning(
-                f"Headers don't match config with headers: {', '.join(headers)}; required: {', '.join(self.required_headers)}"
-            )
-            return False
-        else:
-            return True
+        valid_headers = True
+        for header in self.required_headers:
+            if header not in headers:
+                valid_headers = False
+                logger.warning(f"Missing mandatory header: {header}")
+        return valid_headers
 
     def _set_status(self, new_status):
         new_name = f"{self.name}{new_status}"
