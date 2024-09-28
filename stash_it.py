@@ -9,13 +9,18 @@ TRANSFER_DIR = os.getenv("TRANSFER_DIR")
 ARCHIVE_DIR = os.getenv("ARCHIVE_DIR")
 LOGGING_DIR = os.getenv("LOGGING_DIR")
 
+
 def main():
     valid_transfers = []
     valid_metadata = {}
 
     logfilename = f"{time.strftime('%Y%m%d')}_stash-it_transfer.log"
     logfile = os.path.join(LOGGING_DIR, logfilename)
-    logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        filename=logfile,
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
     # check that directories are connected.
     if not os.path.exists(LOGGING_DIR):
@@ -23,7 +28,7 @@ def main():
     elif not os.path.exists(TRANSFER_DIR) or not os.path.exists(ARCHIVE_DIR):
         logger.error(f"Error connecting to storage and transfer locations.")
         raise Exception("Input and output directories not correctly configured.")
-    
+
     at_transfer = os.listdir(TRANSFER_DIR)
     ok_files = [x for x in at_transfer if x.endswith(".ok")]
 
@@ -41,7 +46,7 @@ def main():
         # generate and add a random uuid as External-Identifier
         transfer_id = uuid.uuid4()
         metadata = valid_metadata.get(folder)
-        metadata.update({"External-Identifier":transfer_id})
+        metadata.update({"External-Identifier": transfer_id})
         # check it's not already a bag:
         try:
             bag = bagit.Bag(folder)
@@ -51,7 +56,6 @@ def main():
             logger.info(f"Making new bag at: {folder}")
         if bag.is_valid():
             print("We have a valid bag!")
-
 
 
 main()
