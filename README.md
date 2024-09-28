@@ -34,6 +34,18 @@ Example `.bat` script:
         echo     "Internal-Sender-Identifier": "%var%",
         echo }
 
+### Trigger file handling
+
+Required metadata fields are configured in the `.env` file. See `env.example` for example fields. 
+
+The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
+- Does the folder exist?
+- Does it have data in it?
+- Was metadata included in the staging file?
+- Does it have the right keys?
+- Are all the values set?
+
+Any failing conditions are tracked and the errors written to a `.error` file along with a default metadata form.
 
 ### Metadata model
 

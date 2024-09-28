@@ -30,7 +30,7 @@ class TriggerFile:
             errors.append("Folder does not exist.")
         elif not self._has_data():
             errors.append("Folder is empty.")
-        if not self._valid_heeaders():
+        if not self._valid_headers():
             errors.append("Headers do not match config.")
         if not self._check_metadata():
             errors.append("Error parsing metadata. Are your values filled in?")
@@ -46,7 +46,7 @@ class TriggerFile:
             return False
 
     
-    def _valid_heeaders(self):
+    def _valid_headers(self):
         if self.metadata is None:
             return False
         headers = list(self.metadata.keys())
