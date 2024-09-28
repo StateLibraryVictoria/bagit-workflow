@@ -1,7 +1,9 @@
 import os
 import json
+import logging
 
 headers = json.loads(os.getenv("REQUIRED_HEADERS"))
+logger = logging.getLogger(__name__)
 
 class TriggerFile:
     def __init__(self, filename):
@@ -25,6 +27,7 @@ class TriggerFile:
         return self.metadata
     
     def validate(self):
+        logger.info(f"Verifying transfer: {self.name}")
         errors = []
         if not self._exists():
             errors.append("Folder does not exist.")
@@ -38,14 +41,14 @@ class TriggerFile:
         if len(errors) == 0:
             return True
         else:
+            logger.info(f"Issues identified while processing {self.filename}: {' '.join(errors)}")
             self._set_status(".error")
             with open(self.filename, 'w') as f:
                 for error in errors:
-                    f.write(error)
+                    f.write(error + "\n")
                 f.write(self._build_default_metadata())
             return False
 
-    
     def _valid_headers(self):
         if self.metadata is None:
             return False
