@@ -45,6 +45,8 @@ class TriggerFile:
 
     
     def _valid_heeaders(self):
+        if self.metadata is None:
+            return False
         headers = list(self.metadata.keys())
         headers.sort()
         self.required_headers.sort()
@@ -76,7 +78,7 @@ class TriggerFile:
     def _build_default_metadata(self):
         data = {}
         for key in self.required_headers:
-            if self.metadata.get(key) is not None:
+            if self.metadata is not None and self.metadata.get(key) is not None:
                 data.update({key: self.metadata.get(key)})
             else:
                 data.update({key:"Input this value."})
