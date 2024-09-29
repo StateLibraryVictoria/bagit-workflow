@@ -46,7 +46,7 @@ Any failing conditions are tracked and the errors written to a `.error` file alo
 
 #### Existing bags
 
-Existing bags can be processed with the trigger file. To use the `.ok` file metadata, delete the `bagi-info.txt` file. Otherwise it will use the bag metadata.
+Existing bags can be processed with the trigger file. To use the `.ok` file metadata, delete the `bag-info.txt` file. Otherwise it will use the bag metadata.
 
 ### Adding UUIDs
 
@@ -56,6 +56,10 @@ A UUID is added to each bag in `External-Identifier` field. The `MetadataChecker
 
 Copying is handled in the runner script (`stash_it.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`.
 
+A sqlite3 database is used to store a record of collections (folders) and transactions (transfers). To check for duplicate data transfers, the hash of the SHA256 manifest is added to the transactions and checked before moving data. 
+
+In the output location, files are stored in the transfer folder they were submitted from, within a subfolder t1 that increments as transfers are added.
+
 ### Metadata model
 
 To do:
@@ -63,15 +67,13 @@ To do:
 
 ### Testing
 
-To do:
-- Outline the tests
+Some tests have been created for:
+- `TriggerFile` class
+- `MetadataChecker` class
 
 ## Development
 
-Features to add:
-- Trigger
-- Metadata parsing
-- Bagging process
-- Copying process
-- Database recording
-- Logging
+To do:
+- Collection profiling on transfer (file ext only)
+- Validation script with logging/db
+- Integration with Obsidian for cataloguing
