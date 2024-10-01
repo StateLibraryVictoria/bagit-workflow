@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a basic workflow for stashing data safely on a server with minimum metadata as BagIt bags. Includes a record of transfers using a sqlite2 database.
+This is a basic workflow for stashing data safely on a server with minimum metadata as BagIt bags. Includes a record of transfers using a sqlite3 database.
 
 ## Getting started
 
@@ -77,3 +77,4 @@ To do:
 - Collection profiling on transfer (file ext only)
 - Validation script with logging/db
 - Integration with Obsidian for cataloguing
+- Granular deduplication and `fetch.txt` integration

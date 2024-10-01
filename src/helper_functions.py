@@ -119,7 +119,7 @@ class MetadataChecker:
         if self._valid_headers(metadata):
             return self._has_uuid(metadata)
         else:
-            raise ValueError("Incorrect header config.")
+            return None
 
     def _has_uuid(self, metadata):
         parsed_uuid = []
