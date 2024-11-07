@@ -43,6 +43,15 @@ class TriggerFile:
     def get_directory(self):
         return self.name
 
+    def set_error(self, error):
+        self._set_status(".error")
+        try:
+            with open(self.filename, "w") as f:
+                f.write(error + "\n")
+                f.write(self._build_default_metadata())
+        except PermissionError as e:
+            logger.error(f"Error writing to file: {e}")
+
     def validate(self):
         logger.info(f"Verifying transfer: {self.name}")
         errors = []
