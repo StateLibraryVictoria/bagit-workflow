@@ -49,6 +49,23 @@ def invalid_trigger_file(tmp_path):
     yield file
 
 
+@pytest.fixture
+def existing_bag_info_file(tmp_path):
+    file = tmp_path / "test_bag.ok"
+    dir = tmp_path / "test_bag"
+    dir.mkdir()
+    bagit.make_bag(
+        dir,
+        {
+            "Source-Organization": "Home",
+            "Contact-Name": "Susannah Bourke",
+            "External-Description": "A test metadata package for a valid transfer.",
+            "Internal-Sender-Identifier": "/path/to/folder",
+        },
+    )
+    yield file
+
+
 def test_load_metadata(valid_trigger_file):
     tf = TriggerFile(valid_trigger_file)
     assert tf.get_metadata().get("Source-Organization") == "Home"
@@ -66,10 +83,20 @@ def test_header_validation_succeeds(valid_trigger_file):
     assert tf.validate() == True
 
 
-def test_get_metadata(valid_trigger_file, valid_metadata_no_uuid):
+def test_get_metadata_from_ok(valid_trigger_file, valid_metadata_no_uuid):
     data = valid_metadata_no_uuid
     tf = TriggerFile(valid_trigger_file)
     assert data == tf.get_metadata()
+
+
+def test_get_metadata_from_bag(existing_bag_info_file, valid_metadata_no_uuid):
+    data = valid_metadata_no_uuid
+    tf = TriggerFile(existing_bag_info_file)
+    # clean up the extra keys we don't need
+    result = tf.get_metadata()
+    for key in ["Payload-Oxum", "Bagging-Date", "Bag-Software-Agent"]:
+        result.pop(key)
+    assert data == result
 
 
 def test_error_file_creation(invalid_trigger_file, tmp_path):
@@ -77,6 +104,16 @@ def test_error_file_creation(invalid_trigger_file, tmp_path):
     tf.validate()
     file = tmp_path / "invalid_trigger.error"
     assert os.path.isfile(file)
+
+
+def test_error_file_data(invalid_trigger_file, tmp_path):
+    tf = TriggerFile(invalid_trigger_file)
+    tf.validate()
+    file = tmp_path / "invalid_trigger.error"
+    expected = f'Headers do not match config.{os.linesep}Error parsing metadata. Are your values filled in?{os.linesep}{{"Source-Organization": "Home", "Contact-Name": "Input this value.", "External-Description": "Input this value.", "Internal-Sender-Identifier": "Input this value."}}'
+    with open(file, "r") as f:
+        data = f.read()
+    assert expected == data
 
 
 def test_not_ok_file_raises_exception(tmp_path):
