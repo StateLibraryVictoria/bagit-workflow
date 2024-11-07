@@ -28,7 +28,13 @@ class TriggerFile:
             metadata = bag.info
         else:
             with open(self.filename) as f:
-                metadata = json.loads(f.read())
+                try:
+                    metadata = json.load(f)
+                except json.JSONDecodeError as e:
+                    logger.error(
+                        f"Failed to parse metadata from file {self.filename}: {e}"
+                    )
+                    metadata = None
         return metadata
 
     def get_metadata(self):
@@ -80,7 +86,7 @@ class TriggerFile:
     def _set_status(self, new_status):
         new_name = f"{self.name}{new_status}"
         os.rename(self.filename, new_name)
-        logger.info(f"Renaming file to .error file: {new_name}")
+        logger.info(f"Renaming file to {new_status} file: {new_name}")
         self.status = new_status
         self.filename = new_name
 
@@ -144,7 +150,7 @@ class MetadataChecker:
             if ids is not None:
                 ids.append(transfer_id)
             else:
-                ids = transfer_id
+                ids = [transfer_id]
             metadata.update({"External-Identifier": ids})
             logger.info(f"Adding UUID to metadata: {', '.join(ids)}")
         return metadata
