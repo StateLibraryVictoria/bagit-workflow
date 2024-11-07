@@ -5,56 +5,104 @@ import subprocess
 import sqlite3
 import hashlib
 import sys
+import shutil
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-TRANSFER_DIR = os.getenv("TRANSFER_DIR")
-ARCHIVE_DIR = os.getenv("ARCHIVE_DIR")
-LOGGING_DIR = os.getenv("LOGGING_DIR")
-DATABASE = os.getenv("DATABASE")
+
+def load_config():
+    config = {
+        "TRANSFER_DIR": os.getenv("TRANSFER_DIR"),
+        "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
+        "LOGGING_DIR": os.getenv("LOGGING_DIR"),
+        "DATABASE": os.getenv("DATABASE"),
+    }
+    return config
 
 
-def configure_db(database_connection):
-    con = database_connection
-    cur = con.cursor()
+@contextmanager
+def get_db_connection(db_path):
+    con = sqlite3.connect(db_path)
     try:
-        cur.execute(
-            "CREATE TABLE Collections(InternalSenderID PRIMARY KEY, Count INT DEFAULT 1)"
-        )
-    except sqlite3.OperationalError as e:
-        logger.debug(f"Error creating table collections: {e}")
-    try:
-        cur.execute(
-            "CREATE TABLE Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, InternalSenderID, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
-        )
-    except sqlite3.OperationalError as e:
-        logger.debug(f"Error creating table transfers: {e}")
-    cur.close()
+        yield con
+    except sqlite3.DatabaseError as e:
+        con.rollback()
+        logger.error(f"Database error: {e}")
+        raise
+    finally:
+        con.commit()
+        con.close()
 
 
-def get_count_collections_processed(primary_id, db_connection):
-    con = db_connection
-    cur = con.cursor()
-    res = cur.execute(
-        "SELECT * FROM collections WHERE InternalSenderID=:id", {"id": primary_id}
-    )
-    results = res.fetchall()
-    if len(results) == 0:
-        return 0
-    if len(results) > 1:
-        raise ValueError(
-            "Database configuration error - only one identifier entry should exist."
-        )
-    else:
-        return results[0][1]
+def configure_db(database_path):
+    with get_db_connection(database_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS Collections(InternalSenderID PRIMARY KEY, Count INT DEFAULT 1)"
+            )
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error creating table collections: {e}")
+            raise
+        try:
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, InternalSenderID, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
+            )
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error creating table transfers: {e}")
+            raise
 
 
-def is_processed(id, db_connection):
-    count = get_count_collections_processed(id, db_connection)
-    if count == 0:
-        return False
-    else:
-        return True
+def insert_transfer(folder, bag, manifest_hash, copy_time, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO transfers (InternalSenderID, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    folder,
+                    bag.info["External-Description"],  # UUID field
+                    time.strftime("%Y%m%d"),
+                    bag.info["Payload-Oxum"],
+                    manifest_hash,
+                    copy_time,
+                ),
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting transfer record: {e}")
+            raise  # Reraise the exception to handle it outside if necessary
+        try:
+            cur.execute(
+                "INSERT INTO collections(InternalSenderID) VALUES(:id) ON CONFLICT (InternalSenderID) DO UPDATE SET count = count + 1",
+                {"id": folder},
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting collections record: {e}")
+            raise  # Reraise the exception to handle it outside if necessary
+
+
+def get_count_collections_processed(primary_id, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            res = cur.execute(
+                "SELECT * FROM collections WHERE InternalSenderID=:id",
+                {"id": primary_id},
+            )
+            results = res.fetchall()
+            if len(results) == 0:
+                return 0
+            if len(results) > 1:
+                raise ValueError(
+                    "Database count parsing error - only one identifier entry should exist."
+                )
+            else:
+                return results[0][1]
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error getting count processed from id: {e}")
+            raise
 
 
 def validate_dirs(dir_list):
@@ -68,16 +116,50 @@ def validate_dirs(dir_list):
 
 def timed_rsync_copy(folder, output_dir):
     start = time.perf_counter()
-    subprocess.run(["rsync", "-vrlt", f"{folder}/", output_dir])
+    # may need to add bandwith limit --bwlimit=1000
+    try:
+        result = subprocess.run(
+            ["rsync", "-vrlt", "--checksum", f"{folder}/", output_dir], check=True
+        )
+        logger.info(result.stdout)
+        if result.stderr:
+            logger.error(result.stderr)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"rsync failed for folder {folder} to {output_dir}")
+        logger.error(f"Error: {e}")
+        raise
     return time.perf_counter() - start
 
 
+def compute_manifest_hash(folder):
+    hash_sha256 = hashlib.sha256()
+    file_path = os.path.join(folder, "manifest-sha256.txt")
+
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):  # Read in 4 KB chunks
+            hash_sha256.update(chunk)
+
+    return hash_sha256.hexdigest()
+
+
+def cleanup_transfer(folder):
+    shutil.rmtree(folder)
+    if os.path.isfile(f"{folder}.ok"):
+        os.remove(f"{folder}.ok")
+
+
 def main():
+    # load variables
+    config = load_config()
+    logging_dir = config.get("LOGGING_DIR")
+    transfer_dir = config.get("TRANSFER_DIR")
+    archive_dir = config.get("ARCHIVE_DIR")
+    database = config.get("DATABASE")
+
     valid_transfers = []
-    valid_metadata = {}
 
     logfilename = f"{time.strftime('%Y%m%d')}_stash-it_transfer.log"
-    logfile = os.path.join(LOGGING_DIR, logfilename)
+    logfile = os.path.join(logging_dir, logfilename)
     logging.basicConfig(
         filename=logfile,
         level=logging.INFO,
@@ -85,11 +167,11 @@ def main():
     )
 
     # check that directories are connected.
-    if not validate_dirs([LOGGING_DIR, TRANSFER_DIR, ARCHIVE_DIR]):
+    if not validate_dirs([logging_dir, transfer_dir, archive_dir]):
         sys.exit()
 
     # Get the .ok files at the transfer directory
-    at_transfer = os.listdir(TRANSFER_DIR)
+    at_transfer = os.listdir(transfer_dir)
     ok_files = [x for x in at_transfer if x.endswith(".ok")]
 
     if len(ok_files) == 0:
@@ -98,93 +180,92 @@ def main():
     else:
         logger.info(f"Transfers to process: {len(ok_files)}")
         for file in ok_files:
-            tf = TriggerFile(os.path.join(TRANSFER_DIR, file))
+            tf = TriggerFile(os.path.join(transfer_dir, file))
             folder = tf.get_directory()
             if tf.validate():
-                valid_transfers.append(folder)
-                valid_metadata.update({folder: tf.get_metadata()})
+                valid_transfers.append(tf)
 
     mc = MetadataChecker()
 
     # set up database
-    database = DATABASE
-    con = sqlite3.connect(database)
-    configure_db(con)
-    cur = con.cursor()
+    try:
+        configure_db(database)
+    except sqlite3.OperationalError as e:
+        print(f"Error configuring database: {e}")
 
-    for folder in valid_transfers:
-        # generate and add a random uuid as External-Identifier
-        metadata = valid_metadata.get(folder)
-        metadata = mc.validate(metadata)
-        if metadata is not None:
-            # try to parse as bag and if that fails build new bag.
-            try:
-                bag = bagit.Bag(folder)
-                logger.info(f"Processing existing bag at: {folder}")
-                for key in metadata.keys():
-                    bag.info[key] = metadata.get(key)
-                bag.save()
-            except Exception as e:
-                logger.info(f"Making new bag at: {folder}")
-                bag = bagit.make_bag(folder, bag_info=metadata)
+    with get_db_connection(database) as con:
+        cur = con.cursor()
 
-            # check if bag is valid before moving.
-            if bag.is_valid():
-                # Hash manifest for dedupe
-                manifest_hash = hashlib.sha256(
-                    open(os.path.join(folder, "manifest-sha256.txt"), "rb").read()
-                ).hexdigest()
+        for tf in valid_transfers:
+            # generate and add a random uuid as External-Identifier
+            metadata = tf.get_metadata()
+            folder = tf.get_directory()
+            metadata = mc.validate(metadata)
+            if metadata is not None:
+                # try to parse as bag and if that fails build new bag.
+                try:
+                    bag = bagit.Bag(folder)
+                    logger.info(f"Processing existing bag at: {folder}")
+                    for key in metadata.keys():
+                        bag.info[key] = metadata.get(key)
+                    bag.save()
+                except bagit.BagError as e:
+                    logger.info(f"Making new bag at: {folder}")
+                    bag = bagit.make_bag(folder, bag_info=metadata)
 
-                # check the transfer is unique
-                results = cur.execute(
-                    "SELECT * FROM transfers WHERE ManifestSHA256Hash=:id",
-                    {"id": manifest_hash},
-                )
-                identical_folders = results.fetchall()
-                if len(identical_folders) > 0:
-                    raise ValueError(
-                        f"Manifest hash conflict: folder {folder} with transaction id {identical_folders[0][0]} and folder title {identical_folders[0][1]}"
+                # check if bag is valid before moving.
+                if bag.is_valid():
+                    # Hash manifest for dedupe
+                    manifest_hash = compute_manifest_hash(folder)
+
+                    # check the transfer is unique
+                    results = cur.execute(
+                        "SELECT * FROM transfers WHERE ManifestSHA256Hash=:id",
+                        {"id": manifest_hash},
                     )
+                    identical_folders = results.fetchall()
+                    if len(identical_folders) > 0:
+                        logger.warning(
+                            f"Manifest hash conflict: folder {folder} with transaction id {identical_folders[0][0]} and folder title {identical_folders[0][1]}"
+                        )
+                        tf.set_error("Folder is a duplicate.")
 
-                # Check output directory
-                count = get_count_collections_processed(folder, con)
-                count += 1
-                # Copy to output directory
-                output_folder = os.path.join(
-                    os.path.basename(os.path.normpath(folder)), f"t{count}"
-                )
-                output_dir = os.path.join(ARCHIVE_DIR, output_folder)
+                    # Check output directory
+                    try:
+                        count = get_count_collections_processed(folder, database)
+                    except Exception as e:
+                        continue
+                    count += 1
+                    # Copy to output directory
+                    output_folder = os.path.join(
+                        os.path.basename(os.path.normpath(folder)), f"t{count}"
+                    )
+                    output_dir = os.path.join(archive_dir, output_folder)
 
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
+                    if not os.path.exists(output_dir):
+                        os.makedirs(output_dir)
 
-                copy_time = timed_rsync_copy(folder, output_dir)
+                    copy_time = timed_rsync_copy(folder, output_dir)
 
-            output_bag = bagit.Bag(output_dir)
+                output_bag = bagit.Bag(output_dir)
 
-            # check copied bag is valid and if so update database
-            if output_bag.is_valid():
-                cur.execute(
-                    "INSERT INTO collections(InternalSenderID) VALUES(:id) ON CONFLICT (InternalSenderID) DO UPDATE SET count = count + 1",
-                    {"id": folder},
-                )
-                con.commit()
-                cur.execute(
-                    "INSERT INTO transfers(InternalSenderID, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash,TransferTimeSeconds) VALUES(:InternalSenderId, :BagUUID, :TransferDate, :PayloadOxum, :ManifestSHA, :TransferTime)",
-                    {
-                        "InternalSenderId": folder,
-                        "BagUUID": bag.info[
-                            "External-Description"
-                        ],  # fix this so it only includes the UUID
-                        "TransferDate": time.strftime("%Y%m%d"),
-                        "PayloadOxum": bag.info["Payload-Oxum"],
-                        "ManifestSHA": manifest_hash,
-                        "TransferTime": copy_time,
-                    },
-                )
-                con.commit()
-        else:
-            logger.error(f"Error moving bag: {e}")
+                # check copied bag is valid and if so update database
+                if output_bag.is_valid():
+                    try:
+                        insert_transfer(folder, bag, manifest_hash, copy_time, database)
+                        cleanup_transfer(folder)
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to insert transfer for folder {folder}: {e}"
+                        )
+                        continue
+                else:
+                    logger.error(
+                        "Transferred bag was invalid. Removing transferred data."
+                    )
+                    os.rmdir(output_dir)
+            else:
+                logger.error(f"Error moving bag: {e}")
 
 
 main()
