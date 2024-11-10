@@ -105,15 +105,6 @@ def get_count_collections_processed(primary_id, db_path):
             raise
 
 
-def validate_dirs(dir_list):
-    valid = True
-    for dir in dir_list:
-        if not os.path.exists(dir):
-            valid = False
-            logger.error(f"Directory does not exist: {dir}")
-    return valid
-
-
 def timed_rsync_copy(folder, output_dir):
     start = time.perf_counter()
     # may need to add bandwith limit --bwlimit=1000
@@ -167,8 +158,10 @@ def main():
     )
 
     # check that directories are connected.
-    if not validate_dirs([logging_dir, transfer_dir, archive_dir]):
-        sys.exit()
+    for dir in [transfer_dir, archive_dir]:
+        if not os.path.exists(dir):
+            logger.error(f"Directory: {dir} does not exist.")
+            sys.exit()
 
     # Get the .ok files at the transfer directory
     at_transfer = os.listdir(transfer_dir)
@@ -268,4 +261,5 @@ def main():
                 logger.error(f"Error moving bag: {e}")
 
 
-main()
+if __name__ == "__main__":
+    main()
