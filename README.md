@@ -1,4 +1,4 @@
-# stash-it
+# Bagit Workflow
 
 ## Overview
 
@@ -54,7 +54,7 @@ A UUID is added to each bag in `External-Identifier` field. The `MetadataChecker
 
 ### Copying to output directory
 
-Copying is handled in the runner script (`stash_it.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`.
+Copying is handled in the runner script (`bagit_transfer.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`.
 
 A sqlite3 database is used to store a record of collections (folders) and transactions (transfers). To check for duplicate data transfers, the hash of the SHA256 manifest is added to the transactions and checked before moving data. 
 
@@ -74,7 +74,5 @@ Some tests have been created for:
 ## Development
 
 To do:
-- Collection profiling on transfer (file ext only)
-- Validation script with logging/db
-- Integration with Obsidian for cataloguing
-- Granular deduplication and `fetch.txt` integration
+- Identifier parsing.
+- Bag validation flow.
