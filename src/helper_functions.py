@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import uuid
 import bagit
@@ -174,3 +175,57 @@ class MetadataChecker:
                 valid_headers = False
                 logger.warning(f"Missing mandatory header: {header}")
         return valid_headers
+
+
+
+class IdParser:
+    """Parser for pulling identifiers from strings based on config.
+
+    Keyword arguments:
+        valid_pattern -- regex pattern for validating identifiers
+        pattern_list -- list of regex with identifier patterns
+    """
+
+    def __init__(self, valid_pattern, pattern_list):
+        self
+        self.valid_pattern = valid_pattern
+        self.pattern_list = pattern_list
+
+    def validate_id(self, id):
+        """Returns true if submitted data matches valid ID pattern"""
+        if id is None:
+            return None
+        return re.fullmatch(self.valid_pattern, id) is not None
+
+    def normalise_id(self, id):
+        """Normalise ids to facilitate easy searching"""
+        # check if id is a MS number.
+        ms_test = re.match(r"(MS)(\d+)", id)
+        sc_test = re.match(r"(SC)\D?(\d+)", id)
+        if ms_test is not None:
+            norm_id = "-".join(ms_test.groups())
+        elif sc_test is not None:
+            norm_id = "".join(sc_test.groups())
+        else:
+            norm_id = re.sub("[_\.]|\s", "-", id)
+        if norm_id != id:
+            logger.info(f"Normalised id {id} to {norm_id}")
+        return norm_id
+
+    def get_ids(self, string, normalise=False):
+        """Finds identifiers in strings based on supplied identifier pattern regex.
+        Returns ids as a list which is compatible with Python BagIt. Optional to normalise with
+        """
+
+        matches = re.findall(self.pattern_list, string)
+        if len(matches) < 1:
+            ids = None
+        else:
+            ids = []
+            for match in matches:
+                id = "".join((match))
+                if normalise:
+                    id = self.normalise_id(id)
+                if self.validate_id(id):
+                    ids.append(id)
+        return ids
