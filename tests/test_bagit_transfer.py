@@ -1,4 +1,4 @@
-from stash_it import *
+from bagit_transfer import *
 import pytest
 
 
