@@ -3,21 +3,29 @@ import re
 import json
 import uuid
 import bagit
+import subprocess
 import logging
+from pathlib import Path
+from abc import ABC, abstractmethod
 
 headers = json.loads(os.getenv("REQUIRED_HEADERS"))
 logger = logging.getLogger(__name__)
 
+# metadata tags
+PRIMARY_ID = "External-Identifier"
+UUID_ID = "Internal-Sender-Identifier"
+CONTACT = "Contact-Name"
+EXTERNAL_DESCRIPTION = "External-Description"
 
 class TriggerFile:
-    def __init__(self, filename):
-        self
+    def __init__(self, filename, id_parser):
         self.filename = filename
+        self.id_parser = id_parser
         self.name, self.status = os.path.splitext(filename)
         if not self.status == ".ok":
             raise ValueError("Only processes .ok files!")
+        self.transfer_type = TransferType(NewTransfer())
         self.metadata = self.load_metadata()
-        self.required_headers = headers
 
     def load_metadata(self):
         bag_info = os.path.join(self.name, "bag-info.txt")
@@ -25,17 +33,8 @@ class TriggerFile:
             logging.info(
                 "Existing bag identified. Will use bag metadata. Delete bag-info.txt to run a bag with supplied metadata."
             )
-            bag = bagit.Bag(self.name)
-            metadata = bag.info
-        else:
-            with open(self.filename) as f:
-                try:
-                    metadata = json.load(f)
-                except json.JSONDecodeError as e:
-                    logger.error(
-                        f"Failed to parse metadata from file {self.filename}: {e}"
-                    )
-                    metadata = None
+            self.transfer_type.transfer = BagTransfer()
+        metadata = self.transfer_type.build_metadata(path=self.name, id_parser=self.id_parser)
         return metadata
 
     def get_metadata(self):
@@ -56,20 +55,17 @@ class TriggerFile:
     def validate(self):
         logger.info(f"Verifying transfer: {self.name}")
         errors = []
-        if not self._exists():
+        if not os.path.exists(self.name):
             errors.append("Folder does not exist.")
-        elif not self._has_data():
+        elif not len(os.listdir(self.name)) > 0:
             errors.append("Folder is empty.")
-        if not self._valid_headers():
-            errors.append("Headers do not match config.")
         if not self._check_metadata():
-            errors.append("Error parsing metadata. Are your values filled in?")
-
+            errors.append("Error parsing metadata.")
         if len(errors) == 0:
             logger.info(f"Transfer verified: {self.name}")
             return True
         else:
-            logger.info(
+            logger.error(
                 f"Issues identified while processing {self.filename}: {' '.join(errors)}"
             )
             self._set_status(".error")
@@ -77,21 +73,9 @@ class TriggerFile:
                 with open(self.filename, "w") as f:
                     for error in errors:
                         f.write(error + "\n")
-                    f.write(self._build_default_metadata())
             except PermissionError as e:
                 logger.error(f"Error writing to file: {e}")
             return False
-
-    def _valid_headers(self):
-        if self.metadata is None:
-            return False
-        headers = list(self.metadata.keys())
-        valid_headers = True
-        for header in self.required_headers:
-            if header not in headers:
-                valid_headers = False
-                logger.warning(f"Missing mandatory header: {header}")
-        return valid_headers
 
     def _set_status(self, new_status):
         new_name = f"{self.name}{new_status}"
@@ -100,54 +84,27 @@ class TriggerFile:
         self.status = new_status
         self.filename = new_name
 
-    def _exists(self):
-        return os.path.exists(self.name)
-
-    def _has_data(self):
-        return len(os.listdir(self.name)) > 0
-
     def _check_metadata(self):
         if self.metadata == None:
             logger.error("Metadata could not be parsed from file.")
             return False
-        for key in self.required_headers:
-            result = self.metadata.get(key)
-            if result == None or result == "" or result == "Input this value.":
-                logger.info(f"Metadata tag {key} was not parsed.")
-                return False
-        return True
-
-    def _build_default_metadata(self):
-        data = {}
-        for key in self.required_headers:
-            if self.metadata is not None and self.metadata.get(key) is not None:
-                data.update({key: self.metadata.get(key)})
-            else:
-                data.update({key: "Input this value."})
-        return json.dumps(data)
-
-
-class MetadataChecker:
-    def __init__(self):
-        self.required_headers = headers
-
-    def validate(self, metadata):
-        if self._valid_headers(metadata):
-            return self._has_uuid(metadata)
         else:
-            return None
+            return self._check_ids()
+    
+    def _check_ids(self):
+        collection_id = self.metadata.get(PRIMARY_ID)
+        logger.warning(self.metadata)
+        transfer_id = self.metadata.get(UUID_ID)
+        has_uuid = self._has_uuid(transfer_id)
+        has_collection_id = self._has_collection_id(collection_id)
+        if has_collection_id and not has_uuid:
+            self._add_uuid()
+            logger.warning("Adding uuid to item.")
+        return has_collection_id
 
-    def _has_uuid(self, metadata):
+    def _has_uuid(self, ids: list):
         parsed_uuid = []
-        mids = metadata.get("External-Identifier")
-        ids = []
-        if type(ids) == str:
-            ids = list(ids)
-        if mids is not None:
-            if type(mids) != list:
-                ids.append(mids)
-            else:
-                ids = mids
+        if ids is not None and ids !=0:
             for id in ids:
                 try:
                     test_uuid = uuid.UUID(id)
@@ -155,27 +112,29 @@ class MetadataChecker:
                     logger.debug(f"ID {id} is a uuid")
                 except Exception as e:
                     logger.debug(f"Failed to parse uuid from {id}")
-        if len(parsed_uuid) == 0:
-            transfer_id = str(uuid.uuid4())
-            if ids is not None:
-                ids.append(transfer_id)
-            else:
-                ids = [transfer_id]
-            metadata.update({"External-Identifier": ids})
-            logger.info(f"Adding UUID to metadata: {', '.join(ids)}")
-        return metadata
+        return len(parsed_uuid) != 0
+    
+    def _add_uuid(self):
+        transfer_id = str(uuid.uuid4())
+        self.metadata.update({UUID_ID: transfer_id})
 
-    def _valid_headers(self, metadata):
-        if metadata is None:
-            return False
-        headers = list(metadata.keys())
-        valid_headers = True
-        for header in self.required_headers:
-            if header not in headers:
-                valid_headers = False
-                logger.warning(f"Missing mandatory header: {header}")
-        return valid_headers
-
+    def _has_collection_id(self, ids: list):
+        if ids is None or len(ids) == 0:
+            # try to parse from folder title
+            ids = self.id_parser.get_ids(self.name, normalise=True)
+            self.metadata.update({PRIMARY_ID:ids})
+        if ids is not None and len(ids) != 0:
+            for id in ids:
+                if self.id_parser.validate_id(id) == True:
+                    return True
+        if ids is None or len(ids) == 0:
+            logger.error("No ids present.")
+        else:
+            logger.warning(f"No collection id could be parsed from identifiers: {', '.join(ids)}")
+        return False
+    
+    def make_bag(self):
+        self.transfer_type.make_bag(self.name, self.metadata)
 
 
 class IdParser:
@@ -229,3 +188,96 @@ class IdParser:
                 if self.validate_id(id):
                     ids.append(id)
         return ids
+
+class Transfer(ABC):
+
+    @abstractmethod
+    def build_metadata(self, path: str, id_parser: IdParser):
+        pass
+
+    @abstractmethod
+    def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
+        pass
+
+
+class BagTransfer(Transfer):
+    def build_metadata(self, path: str, id_parser: IdParser):
+        bag = bagit.Bag(path)
+        metadata = bag.info
+        return metadata
+    
+    def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
+        bag = bagit.Bag(path)
+        for key in metadata.keys():
+            bag.info[key] = metadata.get(key)
+        bag.save()
+        return bag
+
+
+class NewTransfer(Transfer):
+    def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
+        bag = bagit.make_bag(path, bag_info=metadata)
+        return bag
+
+    def build_metadata(self, path: str, id_parser: IdParser):
+        root, filename = os.path.split(path)
+        owner = self._get_dir_owner(path)
+        identifier = id_parser.get_ids(path)
+        metadata = {
+                PRIMARY_ID: identifier,
+                CONTACT: owner,
+                EXTERNAL_DESCRIPTION: filename,
+            }
+        return metadata
+
+    def _get_dir_owner(self, path):
+        root, folder = os.path.split(path)
+        try:
+            filepath = Path(root)
+            return filepath.owner()
+        except KeyError as e:
+            logger.warning(f"Unable to parse using Path.owner, trying subprocess...")
+            try:
+                owner_data = subprocess.run(
+                    ["dir", root, "/q"],
+                    shell=True,
+                    capture_output=True,
+                    universal_newlines=True,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Command failed: dir /q failed for directory: {folder} with exception {e}"
+                )
+                return None
+            regex = f"STAFF.*{folder}"
+            row = re.findall(regex, owner_data.stdout)
+            try:
+                owner = re.findall(f"STAFF\\\\([A-Za-z]+)\s", row[0])
+                owner = owner[0]
+            except IndexError:
+                logger.error(
+                    f"Error identifying owner from directory data for directory: {folder}"
+                )
+                owner = None
+        return owner
+
+
+class TransferType:
+    def __init__(self, transfer: Transfer) -> None:
+        self._transfer = transfer
+
+    @property
+    def transfer(self) -> Transfer:
+        return self._transfer
+
+    @transfer.setter
+    def transfer(self, transfer: Transfer) -> None:
+        self._transfer = transfer
+
+    def build_metadata(self, path: str, id_parser: IdParser):
+        metadata = self._transfer.build_metadata(path, id_parser)
+        return metadata
+    
+    def make_bag(self, path: str, metadata: dict):
+        bag = self._transfer.make_bag(path, metadata)
+        return bag
