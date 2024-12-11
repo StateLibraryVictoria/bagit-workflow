@@ -37,8 +37,7 @@ Required metadata fields are configured in the `.env` file. See `env.example` fo
 
 The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
 - Does the folder exist?
-- Does it have data in it?
-- Was metadata included in the staging file?
+- Can metadata be parsed?
 - Does it have the right keys?
 - Are all the values set?
 
@@ -46,11 +45,17 @@ Any failing conditions are tracked and the errors written to a `.error` file alo
 
 #### Existing bags
 
-Existing bags can be processed with the trigger file. To use the `.ok` file metadata, delete the `bag-info.txt` file. Otherwise it will use the bag metadata.
+Existing bags can be processed with the trigger file. If metadata changes are required, update the `bag-info.txt` file. The script uses the bag metadata only.
 
-### Adding UUIDs
+### Configured tags and identifiers
 
-A UUID is added to each bag in `External-Identifier` field. The `MetadataChecker` class looks for existing UUIDs and will only add one if one is not already parsed.
+The following tags are hard-coded into `src/helper_functions.py`:
+
+                PRIMARY_ID = "External-Identifier"
+                UUID_ID = "Internal-Sender-Identifier"
+                CONTACT = "Contact-Name"
+                EXTERNAL_DESCRIPTION = "External-Description"
+
 
 ### Copying to output directory
 
@@ -69,10 +74,11 @@ To do:
 
 Some tests have been created for:
 - `TriggerFile` class
-- `MetadataChecker` class
+- `IdParser` class
+- `Transfer` interface for `TransferType` classes to handle bagged vs new transfers
 
 ## Development
 
 To do:
-- Identifier parsing.
 - Bag validation flow.
+- Unit tests for transfer process, edge cases.
