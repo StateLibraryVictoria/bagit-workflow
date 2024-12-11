@@ -154,7 +154,7 @@ def main():
 
     valid_transfers = []
 
-    logfilename = f"{time.strftime('%Y%m%d')}_stash-it_transfer.log"
+    logfilename = f"{time.strftime('%Y%m%d')}_bagit_transfer.log"
     logfile = os.path.join(logging_dir, logfilename)
     logging.basicConfig(
         filename=logfile,
