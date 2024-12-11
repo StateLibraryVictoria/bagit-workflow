@@ -196,16 +196,12 @@ def main():
             metadata = tf.get_metadata()
             folder = tf.get_directory()
             if metadata is not None:
-                # try to parse as bag and if that fails build new bag.
+                # make a bag
                 try:
-                    bag = bagit.Bag(folder)
-                    logger.info(f"Processing existing bag at: {folder}")
-                    for key in metadata.keys():
-                        bag.info[key] = metadata.get(key)
-                    bag.save()
-                except bagit.BagError as e:
-                    logger.info(f"Making new bag at: {folder}")
-                    bag = bagit.make_bag(folder, bag_info=metadata)
+                    bag = tf.make_bag()
+                except Exception as e:
+                    logger.error(f"Error processing bag: {e}")
+                    continue
 
                 # check if bag is valid before moving.
                 if bag.is_valid():
@@ -219,10 +215,11 @@ def main():
                     )
                     identical_folders = results.fetchall()
                     if len(identical_folders) > 0:
-                        logger.warning(
+                        logger.error(
                             f"Manifest hash conflict: folder {folder} with transaction id {identical_folders[0][0]} and folder title {identical_folders[0][1]}"
                         )
                         tf.set_error("Folder is a duplicate.")
+                        continue
 
                     # Check output directory
                     try:
