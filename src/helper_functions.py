@@ -133,11 +133,12 @@ class TriggerFile:
             logger.warning(f"No collection id could be parsed from identifiers: {', '.join(ids)}")
         return False
     
-    def make_bag(self):
+    def make_bag(self) -> bagit.Bag:
         self.set_in_process()
-        self.transfer_type.make_bag(self.name, self.metadata)
+        bag = self.transfer_type.make_bag(self.name, self.metadata)
+        return bag
 
-    def set_in_process(self):
+    def set_in_process(self) -> None:
         self._set_status("processing")
 
 
