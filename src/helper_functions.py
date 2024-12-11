@@ -134,7 +134,11 @@ class TriggerFile:
         return False
     
     def make_bag(self):
+        self.set_in_process()
         self.transfer_type.make_bag(self.name, self.metadata)
+
+    def set_in_process(self):
+        self._set_status("processing")
 
 
 class IdParser:
