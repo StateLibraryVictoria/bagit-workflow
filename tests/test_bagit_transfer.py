@@ -97,7 +97,7 @@ def test_insert_transfer_valid_data_right_columns_transfers(
     columns = [x[0] for x in cur.description]
     assert columns == [
         "TransferID",
-        "InternalSenderID",
+        "CollectionIdentifier",
         "BagUUID",
         "TransferDate",
         "PayloadOxum",
@@ -130,7 +130,7 @@ def test_insert_transfer_valid_data_right_columns_collections(
     result = cur.execute("SELECT * FROM Collections;").fetchall()
     columns = [x[0] for x in cur.description]
     assert columns == [
-        "InternalSenderID",
+        "CollectionIdentifier",
         "Count",
     ]
 

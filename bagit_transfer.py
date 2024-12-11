@@ -10,6 +10,11 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
+# metadata tags
+PRIMARY_ID = "External-Identifier"
+UUID_ID = "Internal-Sender-Identifier"
+CONTACT = "Contact-Name"
+EXTERNAL_DESCRIPTION = "External-Description"
 
 def load_config():
     config = {
@@ -40,30 +45,30 @@ def configure_db(database_path):
         cur = con.cursor()
         try:
             cur.execute(
-                "CREATE TABLE IF NOT EXISTS Collections(InternalSenderID PRIMARY KEY, Count INT DEFAULT 1)"
+                f"CREATE TABLE IF NOT EXISTS Collections(CollectionIdentifier PRIMARY KEY, Count INT DEFAULT 1)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table collections: {e}")
             raise
         try:
             cur.execute(
-                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, InternalSenderID, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
+                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table transfers: {e}")
             raise
 
 
-def insert_transfer(folder, bag, manifest_hash, copy_time, db_path):
+def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
     with get_db_connection(db_path) as con:
         cur = con.cursor()
         try:
             cur.execute(
-                "INSERT INTO transfers (InternalSenderID, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
+                "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     folder,
-                    bag.info["External-Description"],  # UUID field
+                    bag.info[UUID_ID],  # UUID field
                     time.strftime("%Y%m%d"),
                     bag.info["Payload-Oxum"],
                     manifest_hash,
@@ -75,7 +80,7 @@ def insert_transfer(folder, bag, manifest_hash, copy_time, db_path):
             raise  # Reraise the exception to handle it outside if necessary
         try:
             cur.execute(
-                "INSERT INTO collections(InternalSenderID) VALUES(:id) ON CONFLICT (InternalSenderID) DO UPDATE SET count = count + 1",
+                "INSERT INTO collections(CollectionIdentifier) VALUES(:id) ON CONFLICT (CollectionIdentifier) DO UPDATE SET count = count + 1",
                 {"id": folder},
             )
         except sqlite3.DatabaseError as e:
@@ -88,7 +93,7 @@ def get_count_collections_processed(primary_id, db_path):
         cur = con.cursor()
         try:
             res = cur.execute(
-                "SELECT * FROM collections WHERE InternalSenderID=:id",
+                "SELECT * FROM collections WHERE CollectionIdentifier=:id",
                 {"id": primary_id},
             )
             results = res.fetchall()
@@ -174,11 +179,8 @@ def main():
         logger.info(f"Transfers to process: {len(ok_files)}")
         for file in ok_files:
             tf = TriggerFile(os.path.join(transfer_dir, file))
-            folder = tf.get_directory()
             if tf.validate():
                 valid_transfers.append(tf)
-
-    mc = MetadataChecker()
 
     # set up database
     try:
@@ -193,7 +195,6 @@ def main():
             # generate and add a random uuid as External-Identifier
             metadata = tf.get_metadata()
             folder = tf.get_directory()
-            metadata = mc.validate(metadata)
             if metadata is not None:
                 # try to parse as bag and if that fails build new bag.
                 try:
