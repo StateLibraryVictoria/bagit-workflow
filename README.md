@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a basic workflow for stashing data safely on a server with minimum metadata as BagIt bags. Includes a record of transfers using a sqlite3 database.
+This is a basic workflow for archiving data as BagIt bags. The process is intended to support secure storage by creating copies in a remote location, while ensuring validation and minimum metadata. The process includes a sqlite3 database used to store a record of transfers.
 
 ## Getting started
 
@@ -10,8 +10,21 @@ This is a basic workflow for stashing data safely on a server with minimum metad
 
 - [bagit](https://github.com/LibraryOfCongress/bagit-python)
 - [Pytest](https://docs.pytest.org/en/stable/)
+- Python 3.11
+- Environment:
+        - Script running on a Linux server.
+        - Transfer directory in a Windows environment.
 
-### Staging script
+
+### Process overview
+
+Limitations: This process is designed to support processing of data compatible with a Windows filesystem. It cannot handle files with multiple filestreams. 
+
+#### Transfer workflow
+
+![Transfer Activity Diagram](docs/Bagit-Workflow-Activity-Diagram.jpg)
+
+#### Staging script
 
 This process is designed to use minimal metadata submitted as JSON. The current configuration looks for a `folder_title.ok` file that contains minimum metadata. 
 
@@ -31,9 +44,7 @@ Example `.bat` script:
         echo "External-Description":"",
         echo "Internal-Sender-Identifier": "%var%"}
 
-### Trigger file handling
-
-Required metadata fields are configured in the `.env` file. See `env.example` for example fields. Additional fields can be included, but expects at least these.
+#### Trigger file handling
 
 The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
 - Does the folder exist?
@@ -43,9 +54,16 @@ The `TriggerFile` class expects a `.ok` file submitted as a path. It performs ba
 
 Any failing conditions are tracked and the errors written to a `.error` file along with a default metadata form.
 
-#### Existing bags
+When a bag is being processed, the trigger file is set to `.processing` to avoid re-triggering an in-process transfer.
 
-Existing bags can be processed with the trigger file. If metadata changes are required, update the `bag-info.txt` file. The script uses the bag metadata only.
+It relies on the following classes for added functionality:
+- `IdParser` - extracts identifiers from folder titles.
+- `Transfer` - handlers for extracting metadata and making bags between bagged or unbagged transfers.
+
+See the class diagram below for a more comprehensive outline: 
+
+![Class Diagram](docs/Bagit-Workflow-Class-Diagram.jpg)
+
 
 ### Configured tags and identifiers
 
@@ -65,10 +83,24 @@ A sqlite3 database is used to store a record of collections (folders) and transa
 
 In the output location, files are stored in the transfer folder they were submitted from, within a subfolder t1 that increments as transfers are added.
 
-### Metadata model
+### Sqlite3 database
 
-To do:
-- Outline the model
+Transfers are tracked using a `sqlite3` database with the following tables:
+
+- `Collections` - for counting number of transfers an incrementing the counter.
+        - `CollectionIdentifier` - Primary key, stores collection preliminary identifier.
+- `Transfers` - containing key metadata about each transfer including:
+        - `TransferID` - primary key, increment.
+        - `CollectionIdentifier` - matches the primary key in `Collections`.
+        - `BagUUID` - a UUID for the transfer that will be added into the bag info.
+        - `TransferDate` - date transfer occurred.
+        - `PayloadOxum` - BagIt specific metadata containing `octet_count.file_count`.
+        - `ManifestSHA256Hash` - checksum generated from the bag's tag manifest. Used to dedupe identical transfers with different parent folders.
+        - `TransferTimeSeconds` - used to track how long transfers take to copy from transfer directory to archive directory.
+
+**Entity Relationship Diagram**
+
+![Entity Relationship Diagram](docs/Bagit-Workflow-Entity-Relationship-Diagram.jpg)
 
 ### Testing
 
@@ -76,9 +108,10 @@ Some tests have been created for:
 - `TriggerFile` class
 - `IdParser` class
 - `Transfer` interface for `TransferType` classes to handle bagged vs new transfers
+- `__main__()` in `bagit_transfer.py` (though these need enhancing)
 
 ## Development
 
 To do:
-- Bag validation flow.
+- Bag validation workflow.
 - Unit tests for transfer process, edge cases.
