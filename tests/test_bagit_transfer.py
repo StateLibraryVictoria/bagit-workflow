@@ -170,7 +170,8 @@ def test_cleaup_transfer(invalid_trigger_path):
         (["SC1234", "abc", "POL-1234", "RA-9999-99"], "RA-9999-99"),
         (["SC1234", "RA-8888-88", "POL-1234", "RA-9999-99"], "RA-8888-88"),
         (["nonsense"], None),
-        (["SC1234"], "SC1234")
+        (["SC1234"], "SC1234"),
+        ("RA-999-99","RA-999-99")
     ],
 )
 def test_guess_primary_id(input, expected):
