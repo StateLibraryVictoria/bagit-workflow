@@ -135,6 +135,15 @@ def test_not_ok_file_raises_exception(tmp_path, id_parser):
     with pytest.raises(ValueError):
         tf = TriggerFile(file, id_parser)
 
+def test_ok_filepath_not_exist_raises(valid_trigger_file, id_parser):
+    filepath, status = os.path.splitext(valid_trigger_file)
+    for root, dirs, files in os.walk(filepath):
+        for file in files:
+            os.remove(os.path.join(root, file))
+    os.rmdir(filepath)
+    with pytest.raises(OSError):
+        tf = TriggerFile(valid_trigger_file, id_parser)
+
 """IdParser Tests"""
 
 @pytest.mark.parametrize(
