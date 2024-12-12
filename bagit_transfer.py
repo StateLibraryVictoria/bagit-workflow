@@ -60,6 +60,7 @@ def configure_db(database_path):
 
 
 def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
+    preliminary_id = guess_primary_id(bag.info[PRIMARY_ID])
     with get_db_connection(db_path) as con:
         cur = con.cursor()
         try:
@@ -67,7 +68,7 @@ def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
                 "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (
-                    folder,
+                    preliminary_id,
                     bag.info[UUID_ID],  # UUID field
                     time.strftime("%Y%m%d"),
                     bag.info["Payload-Oxum"],
@@ -86,6 +87,17 @@ def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
+
+def guess_primary_id(identifiers: list) -> str:
+    if identifiers == None:
+        return None
+    identifiers.sort()
+    prefixes = ["RA","PA","SC","POL","H","MS"]
+    for prefix in prefixes:
+        result = list(filter(lambda x: x.startswith(prefix), identifiers))
+        if len(result) > 0:
+            return result[0]
+    return None
 
 
 def get_count_collections_processed(primary_id, db_path):

@@ -161,3 +161,17 @@ def test_cleaup_transfer(invalid_trigger_path):
     cleanup_transfer(invalid_trigger_path / "invalid_trigger")
     ok_files = os.listdir(invalid_trigger_path)
     assert len(ok_files) == 0
+
+# test guessing primary id
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        (["SC1234", "abc", "POL-1234", "RA-9999-99"], "RA-9999-99"),
+        (["SC1234", "RA-8888-88", "POL-1234", "RA-9999-99"], "RA-8888-88"),
+        (["nonsense"], None),
+        (["SC1234"], "SC1234")
+    ],
+)
+def test_guess_primary_id(input, expected):
+    result = guess_primary_id(input)
+    assert result == expected
