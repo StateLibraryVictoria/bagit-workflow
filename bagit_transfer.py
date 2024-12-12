@@ -91,6 +91,8 @@ def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
 def guess_primary_id(identifiers: list) -> str:
     if identifiers == None:
         return None
+    if type(identifiers) == str:
+        return identifiers
     identifiers.sort()
     prefixes = ["RA","PA","SC","POL","H","MS"]
     for prefix in prefixes:
