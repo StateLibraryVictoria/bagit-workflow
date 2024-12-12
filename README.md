@@ -26,11 +26,11 @@ Limitations: This process is designed to support processing of data compatible w
 
 #### Staging script
 
-This process is designed to use minimal metadata submitted as JSON. The current configuration looks for a `folder_title.ok` file that contains minimum metadata. 
+This process is designed to use minimal metadata submitted as JSON or parse metadata from the folder title. The current configuration looks for a `folder_title.ok` file that contains minimum metadata or is a zero byte file. 
 
 To generate these files, a Windows Batch file can be created to generate a `folder_title.ready` file with minimum metadata fields. Once the metadata is updated, the user renames the file to `.ok`.
 
-Example `.bat` script:
+Example `.bat` script with metadata:
 
         @echo off
         for /D %%i in (*) do if not exist %%i.ok (
@@ -41,10 +41,19 @@ Example `.bat` script:
         :metadata
         echo {"Source-Organization":"",
         echo "Contact-Name":"",
-        echo "External-Description":"",
-        echo "Internal-Sender-Identifier": "%var%"}
+        echo "External-Description":"%var%",
+        echo "External-Identifier": ""}
 
-#### Trigger file handling
+Example `.bat` script for empty file:
+
+        @echo off
+        for /D %%i in (*) do if not exist %%i.ok (
+                if not exist %%i.error (
+                .> %%i.ok))
+
+### Trigger file handling
+
+Required metadata fields are configured in the `.env` file. See `env.example` for example fields. Additional fields can be included, but expects at least these.
 
 The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
 - Does the folder exist?
@@ -56,7 +65,7 @@ Any failing conditions are tracked and the errors written to a `.error` file alo
 
 When a bag is being processed, the trigger file is set to `.processing` to avoid re-triggering an in-process transfer.
 
-It relies on the following classes for added functionality:
+It relies on the following classes for added functionality:  
 - `IdParser` - extracts identifiers from folder titles.
 - `Transfer` - handlers for extracting metadata and making bags between bagged or unbagged transfers.
 
@@ -87,16 +96,16 @@ In the output location, files are stored in the transfer folder they were submit
 
 Transfers are tracked using a `sqlite3` database with the following tables:
 
-- `Collections` - for counting number of transfers an incrementing the counter.
-        - `CollectionIdentifier` - Primary key, stores collection preliminary identifier.
-- `Transfers` - containing key metadata about each transfer including:
-        - `TransferID` - primary key, increment.
-        - `CollectionIdentifier` - matches the primary key in `Collections`.
-        - `BagUUID` - a UUID for the transfer that will be added into the bag info.
-        - `TransferDate` - date transfer occurred.
-        - `PayloadOxum` - BagIt specific metadata containing `octet_count.file_count`.
-        - `ManifestSHA256Hash` - checksum generated from the bag's tag manifest. Used to dedupe identical transfers with different parent folders.
-        - `TransferTimeSeconds` - used to track how long transfers take to copy from transfer directory to archive directory.
+- `Collections` for counting number of transfers and incrementing the counter.  
+        - Primary key: `CollectionIdentifier` (stores collection preliminary identifier)  
+- `Transfers` containing key metadata about each transfer, including:  
+        - Primary key: `TransferID` (Incremented count of transfers)  
+        - `CollectionIdentifier` - matches the primary key in `Collections`.  
+        - `BagUUID` - a UUID for the transfer that will be added into the bag info.  
+        - `TransferDate` - date transfer occurred.  
+        - `PayloadOxum` - BagIt specific metadata containing `octet_count.file_count`.  
+        - `ManifestSHA256Hash` - checksum generated from the bag's tag manifest. Used to dedupe identical transfers with different parent folders.  
+        - `TransferTimeSeconds` - used to track how long transfers take to copy from transfer directory to archive directory.  
 
 **Entity Relationship Diagram**
 
