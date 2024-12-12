@@ -70,9 +70,11 @@ class TriggerFile:
             )
             self._set_status(".error")
             try:
-                with open(self.filename, "w") as f:
+                with open(self.filename, "a") as f:
                     for error in errors:
                         f.write(error + "\n")
+                    # get logfilename
+                    f.write("See logfile for more information.")
             except PermissionError as e:
                 logger.error(f"Error writing to file: {e}")
             return False
