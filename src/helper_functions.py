@@ -24,8 +24,6 @@ class TriggerFile:
         self.name, self.status = os.path.splitext(filename)
         if not self.status == ".ok":
             raise ValueError("Only processes .ok files!")
-        if not os.path.exists(self.name):
-            raise OSError("Folder does not exist.")
         self.transfer_type = TransferType(NewTransfer())
         self.metadata = self.load_metadata()
 
