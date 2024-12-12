@@ -141,7 +141,7 @@ class TriggerFile:
         return bag
 
     def set_in_process(self) -> None:
-        self._set_status("processing")
+        self._set_status(".processing")
 
 
 class IdParser:
