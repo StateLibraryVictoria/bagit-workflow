@@ -15,7 +15,8 @@ def existing_bag(tmp_path):
             "Source-Organization": "Home",
             "Contact-Name": "Name",
             "External-Description": "A test metadata package for a valid transfer.",
-            "Internal-Sender-Identifier": "/path/to/folder",
+            "External-Identifier": "RA-9999-99",
+            "Internal-Sender-Identifier": "ce2c5343-0f5c-45e1-9cd1-5e10e748efef",
         },
     )
     yield bag
