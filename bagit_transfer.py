@@ -157,6 +157,31 @@ def cleanup_transfer(folder):
     if os.path.isfile(f"{folder}.ok"):
         os.remove(f"{folder}.ok")
 
+def load_id_parser():
+    # Assumes the identifiers will be final value or followed by " ", "_" or "-".
+    final = "(?=[_-]|\\s|$)"
+    # Assumes identifier parts will be separated by "-", "." or "_".
+    sep = "[\\-\\._]?\\s?"
+    identifier_pattern = (
+        # SC numbers
+        f"(SC{sep}\\d{{4,}}{final})|"
+        # RA numbers
+        f"(RA{sep}\\d{{4}}{sep}\\d+{final})|"
+        # PA numbers
+        f"(PA{sep}\\d\\d)(\\d\\d)?({sep}\\d+{final})|"
+        # MS numbers
+        f"(MS{sep}\\d{{2,}}{final})|"
+        # capture case for PO numbers that should fail validation
+        f"(PO{sep}\\d+{sep}slvdb){final}|"
+        # Legacy purchase orders
+        f"(POL{sep})?(\\d{{3,}}{sep}slvdb){final}|"
+        # Current purchase orders
+        f"(POL{sep}\\d{{3,}}{final})|"
+        # H numbers
+        f"(H\\d\\d)(\\d\\d)?({sep}\\d+){final}"
+    )
+    validation_pattern = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+"
+    return IdParser(validation_pattern, identifier_pattern)
 
 def main():
     # load variables
@@ -190,9 +215,10 @@ def main():
         logger.info("No trigger files staged in transfer directory.")
         sys.exit()
     else:
+        id_parser = load_id_parser()
         logger.info(f"Transfers to process: {len(ok_files)}")
         for file in ok_files:
-            tf = TriggerFile(os.path.join(transfer_dir, file))
+            tf = TriggerFile(os.path.join(transfer_dir, file), id_parser)
             if tf.validate():
                 valid_transfers.append(tf)
 
