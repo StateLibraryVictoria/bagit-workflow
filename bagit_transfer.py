@@ -59,8 +59,8 @@ def configure_db(database_path):
             raise
 
 
-def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
-    preliminary_id = guess_primary_id(bag.info[PRIMARY_ID])
+def insert_transfer(folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time, db_path):
+    collection_id = primary_id
     with get_db_connection(db_path) as con:
         cur = con.cursor()
         try:
@@ -68,7 +68,7 @@ def insert_transfer(folder, bag: bagit.Bag, manifest_hash, copy_time, db_path):
                 "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
                 (
-                    preliminary_id,
+                    collection_id,
                     bag.info[UUID_ID],  # UUID field
                     time.strftime("%Y%m%d"),
                     bag.info["Payload-Oxum"],
@@ -245,6 +245,9 @@ def main():
 
                 # check if bag is valid before moving.
                 if bag.is_valid():
+                    # Primary id for filing
+                    primary_id = guess_primary_id(bag.info[PRIMARY_ID])
+
                     # Hash manifest for dedupe
                     manifest_hash = compute_manifest_hash(folder)
 
@@ -263,13 +266,13 @@ def main():
 
                     # Check output directory
                     try:
-                        count = get_count_collections_processed(folder, database)
+                        count = get_count_collections_processed(primary_id, database)
                     except Exception as e:
                         continue
                     count += 1
                     # Copy to output directory
                     output_folder = os.path.join(
-                        os.path.basename(os.path.normpath(folder)), f"t{count}"
+                        os.path.basename(os.path.normpath(primary_id)), f"t{count}"
                     )
                     output_dir = os.path.join(archive_dir, output_folder)
 
@@ -283,11 +286,11 @@ def main():
                 # check copied bag is valid and if so update database
                 if output_bag.is_valid():
                     try:
-                        insert_transfer(folder, bag, manifest_hash, copy_time, database)
+                        insert_transfer(folder, bag, primary_id, manifest_hash, copy_time, database)
                         cleanup_transfer(folder)
                     except Exception as e:
                         logger.error(
-                            f"Failed to insert transfer for folder {folder}: {e}"
+                            f"Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
                         )
                         continue
                 else:
