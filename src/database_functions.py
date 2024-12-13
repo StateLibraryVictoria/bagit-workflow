@@ -12,6 +12,7 @@ UUID_ID = "Internal-Sender-Identifier"
 CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
 
+
 def get_count_collections_processed(primary_id, db_path):
     with get_db_connection(db_path) as con:
         cur = con.cursor()
@@ -32,6 +33,7 @@ def get_count_collections_processed(primary_id, db_path):
         except sqlite3.DatabaseError as e:
             logger.error(f"Error getting count processed from id: {e}")
             raise
+
 
 @contextmanager
 def get_db_connection(db_path):
@@ -65,43 +67,62 @@ def configure_transfer_db(database_path):
             logger.error(f"Error creating table transfers: {e}")
             raise
 
+
 def configure_validation_db(database_path):
     with get_db_connection(database_path) as con:
         cur = con.cursor()
         try:
             cur.execute(
-                f"CREATE TABLE IF NOT EXISTS ValidationActions(ValidationActionsId PRIMARY KEY, CountBagsValidated INT, CountBagsWithErrors INT, StartAction, EndAction)"
+                f"CREATE TABLE IF NOT EXISTS ValidationActions(ValidationActionsId PRIMARY KEY, CountBagsValidated INT, CountBagsWithErrors INT, StartAction, EndAction, Status)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table ValidationActions: {e}")
             raise
-        try: # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
+        try:  # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             cur.execute(
-                "CREATE TABLE IF NOT EXISTS ValidationOutcome(CheckIdentifier INTEGER PRIMARY KEY, ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime)"
+                "CREATE TABLE IF NOT EXISTS ValidationOutcome(OutcomeIdentifier INTEGER PRIMARY KEY, ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table ValidationOutcome: {e}")
             raise
 
+
 def start_validation_action():
     pass
 
-def insert_validation_outcome(validation_action_id, baguuid, outcome, errors, bag_path, validation_start_time, validation_end_time, db_path):
+
+def insert_validation_outcome(
+    validation_action_id,
+    baguuid,
+    outcome,
+    errors,
+    bag_path,
+    validation_start_time,
+    validation_end_time,
+    db_path,
+):
     with get_db_connection(db_path) as con:
         cur = con.cursor
         try:
-            cur.execute("INSERT INTO ValidationOutcome(ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                        (validation_action_id, 
-                         baguuid, 
-                         outcome,
-                         errors,
-                         bag_path,
-                         validation_start_time,
-                         validation_end_time))
+            cur.execute(
+                "INSERT INTO ValidationOutcome(ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    validation_action_id,
+                    baguuid,
+                    outcome,
+                    errors,
+                    bag_path,
+                    validation_start_time,
+                    validation_end_time,
+                ),
+            )
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting record into ValidationOutcome table: {e}")
 
-def insert_transfer(folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time, db_path):
+
+def insert_transfer(
+    folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time, db_path
+):
     collection_id = primary_id
     with get_db_connection(db_path) as con:
         cur = con.cursor()
@@ -129,4 +150,3 @@ def insert_transfer(folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
-        
