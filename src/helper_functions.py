@@ -3,9 +3,14 @@ import re
 import json
 import uuid
 import bagit
+import sqlite3
+import time
+import shutil
+import hashlib
 import subprocess
 import logging
 from pathlib import Path
+from contextlib import contextmanager
 from abc import ABC, abstractmethod
 
 headers = json.loads(os.getenv("REQUIRED_HEADERS"))
@@ -46,9 +51,8 @@ class TriggerFile:
     def set_error(self, error):
         self._set_status(".error")
         try:
-            with open(self.filename, "w") as f:
+            with open(self.filename, "a") as f:
                 f.write(error + "\n")
-                f.write(self._build_default_metadata())
         except PermissionError as e:
             logger.error(f"Error writing to file: {e}")
 
@@ -81,10 +85,13 @@ class TriggerFile:
 
     def _set_status(self, new_status):
         new_name = f"{self.name}{new_status}"
-        os.rename(self.filename, new_name)
-        logger.info(f"Renaming file to {new_status} file: {new_name}")
-        self.status = new_status
-        self.filename = new_name
+        try:
+            os.rename(self.filename, new_name)
+            logger.info(f"Renaming file to {new_status} file: {new_name}")
+            self.status = new_status
+            self.filename = new_name
+        except Exception as e:
+            logger.error(f"Failed to rename file: {self.filename} to {new_name}")
 
     def _check_metadata(self):
         if self.metadata == None:
@@ -288,3 +295,162 @@ class TransferType:
     def make_bag(self, path: str, metadata: dict):
         bag = self._transfer.make_bag(path, metadata)
         return bag
+    
+
+@contextmanager
+def get_db_connection(db_path):
+    con = sqlite3.connect(db_path)
+    try:
+        yield con
+    except sqlite3.DatabaseError as e:
+        con.rollback()
+        logger.error(f"Database error: {e}")
+        raise
+    finally:
+        con.commit()
+        con.close()
+
+
+def configure_db(database_path):
+    with get_db_connection(database_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                f"CREATE TABLE IF NOT EXISTS Collections(CollectionIdentifier PRIMARY KEY, Count INT DEFAULT 1)"
+            )
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error creating table collections: {e}")
+            raise
+        try:
+            cur.execute(
+                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
+            )
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error creating table transfers: {e}")
+            raise
+
+
+def insert_transfer(folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time, db_path):
+    collection_id = primary_id
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    collection_id,
+                    bag.info[UUID_ID],  # UUID field
+                    time.strftime("%Y%m%d"),
+                    bag.info["Payload-Oxum"],
+                    manifest_hash,
+                    copy_time,
+                ),
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting transfer record: {e}")
+            raise  # Reraise the exception to handle it outside if necessary
+        try:
+            cur.execute(
+                "INSERT INTO collections(CollectionIdentifier) VALUES(:id) ON CONFLICT (CollectionIdentifier) DO UPDATE SET count = count + 1",
+                {"id": folder},
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting collections record: {e}")
+            raise  # Reraise the exception to handle it outside if necessary
+
+def guess_primary_id(identifiers: list) -> str:
+    if identifiers == None:
+        return None
+    if type(identifiers) == str:
+        return identifiers
+    identifiers.sort()
+    prefixes = ["RA","PA","SC","POL","H","MS"]
+    for prefix in prefixes:
+        result = list(filter(lambda x: x.startswith(prefix), identifiers))
+        if len(result) > 0:
+            return result[0]
+    return None
+
+
+def get_count_collections_processed(primary_id, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            res = cur.execute(
+                "SELECT * FROM collections WHERE CollectionIdentifier=:id",
+                {"id": primary_id},
+            )
+            results = res.fetchall()
+            if len(results) == 0:
+                return 0
+            if len(results) > 1:
+                raise ValueError(
+                    "Database count parsing error - only one identifier entry should exist."
+                )
+            else:
+                return results[0][1]
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error getting count processed from id: {e}")
+            raise
+
+
+def timed_rsync_copy(folder, output_dir):
+    start = time.perf_counter()
+    # may need to add bandwith limit --bwlimit=1000
+    try:
+        result = subprocess.run(
+            ["rsync", "-vrlt", "--checksum", f"{folder}/", output_dir], check=True
+        )
+        logger.info(result.stdout)
+        if result.stderr:
+            logger.error(result.stderr)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"rsync failed for folder {folder} to {output_dir}")
+        logger.error(f"Error: {e}")
+        raise
+    return time.perf_counter() - start
+
+
+def compute_manifest_hash(folder):
+    hash_sha256 = hashlib.sha256()
+    file_path = os.path.join(folder, "manifest-sha256.txt")
+
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):  # Read in 4 KB chunks
+            hash_sha256.update(chunk)
+
+    return hash_sha256.hexdigest()
+
+# bagit_transfer functions
+
+def cleanup_transfer(folder):
+    shutil.rmtree(folder)
+    if os.path.isfile(f"{folder}.ok"):
+        os.remove(f"{folder}.ok")
+
+def load_id_parser():
+    # Assumes the identifiers will be final value or followed by " ", "_" or "-".
+    final = "(?=[_-]|\\s|$)"
+    # Assumes identifier parts will be separated by "-", "." or "_".
+    sep = "[\\-\\._]?\\s?"
+    identifier_pattern = (
+        # SC numbers
+        f"(SC{sep}\\d{{4,}}{final})|"
+        # RA numbers
+        f"(RA{sep}\\d{{4}}{sep}\\d+{final})|"
+        # PA numbers
+        f"(PA{sep}\\d\\d)(\\d\\d)?({sep}\\d+{final})|"
+        # MS numbers
+        f"(MS{sep}\\d{{2,}}{final})|"
+        # capture case for PO numbers that should fail validation
+        f"(PO{sep}\\d+{sep}slvdb){final}|"
+        # Legacy purchase orders
+        f"(POL{sep})?(\\d{{3,}}{sep}slvdb){final}|"
+        # Current purchase orders
+        f"(POL{sep}\\d{{3,}}{final})|"
+        # H numbers
+        f"(H\\d\\d)(\\d\\d)?({sep}\\d+){final}"
+    )
+    validation_pattern = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+"
+    return IdParser(validation_pattern, identifier_pattern)
