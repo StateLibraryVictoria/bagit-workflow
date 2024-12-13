@@ -20,6 +20,7 @@ def valid_metadata_no_uuid():
 @pytest.fixture
 def valid_trigger_file(tmp_path):
     file = tmp_path / "RA.9999.99_valid_trigger.ok"
+    file.write_text("")
     dir = tmp_path / "RA.9999.99_valid_trigger"
     dir.mkdir()
     file2 = dir / "data.txt"
