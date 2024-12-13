@@ -110,6 +110,26 @@ Transfers are tracked using a `sqlite3` database with the following tables:
 **Entity Relationship Diagram**
 
 ![Entity Relationship Diagram](docs/Bagit-Workflow-Entity-Relationship-Diagram.jpg)
+Integrity checks are tracked using a separate database with the following tables:
+- `ValidationActions` contains a record for every time the script is run, with a count of successful and unsucessful validation checks.
+        - Primary key: `ValidationActionId` (INT PRIMARY KEY)  
+        - `CountBagsValidated` INT  
+        - `CountBagsWithErrors` INT  
+        - `TimeStart`  
+        - `TimeStop`  
+        - `Status` Completed if entire script completed without errors, Processing if in progress.  
+- `ValidationOutcome` contains a record for every bag checked, correlated to the ValidationAction
+        - `OutcomeIdentifier` INTEGER PRIMARY KEY.  
+        - `ValidationActionId` Correlation id to the ValiationActions table.   
+        - `BagUUID`- UUID from the Bag metadata for the bag checked.   
+        - `Outcome`- Valid or Invalid.    
+        - `Errors`- Error message for the failing exception.   
+        - `BagPath` - Location of the bag being checked.    
+        - `StartTime`- Time that processing commenced.  
+        - `EndTime` - Time processing finished.
+
+**Entity Relationship Diagram**   
+![Integrity Checking Entity Relationship Diagram](docs/Bagit-Workflow-Integrity-ER-Diagram.jpg)
 
 ### Testing
 
