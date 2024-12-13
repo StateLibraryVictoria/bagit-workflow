@@ -1,4 +1,5 @@
 from src.helper_functions import *
+from src.database_functions import *
 import bagit
 import time
 import sqlite3
@@ -64,7 +65,7 @@ def main():
 
     # set up database
     try:
-        configure_db(database)
+        configure_transfer_db(database)
     except sqlite3.OperationalError as e:
         print(f"Error configuring database: {e}")
 
