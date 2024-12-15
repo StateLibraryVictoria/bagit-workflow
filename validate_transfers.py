@@ -31,6 +31,14 @@ def main():
     validation_db = config.get("VALIDATION_DB")
     transfer_db = config.get("DATABASE")
 
+    logfilename = f"{time.strftime('%Y%m%d')}_bagit_validation_action.log"
+    logfile = os.path.join(logging_dir, logfilename)
+    logging.basicConfig(
+        filename=logfile,
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
     try:
         configure_validation_db(validation_db)
     except sqlite3.OperationalError as e:
@@ -43,9 +51,9 @@ def main():
     collections = os.listdir(archive_dir)
 
 
-    start_validation_action = datetime.now(timezone.utc())
+    validation_action_begin = datetime.now(timezone.utc())
+    validation_action_id = start_validation(validation_action_begin,validation_db)
     # create the ValidationAction entry here. Get the Primary key to pass to the next function
-    validation_action_id = str(uuid.uuid4())
 
     for collection in collections:
         transfers = os.listdir(collection)
