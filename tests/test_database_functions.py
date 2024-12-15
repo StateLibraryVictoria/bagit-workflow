@@ -32,7 +32,12 @@ def database_path(tmp_path):
     database = dir / "database.db"
     yield database
 
-
+@pytest.fixture()
+def validation_db(tmp_path):
+    dir = tmp_path / "validation_db"
+    dir.mkdir()
+    database = dir / "database.db"
+    yield database
 
 
 
@@ -119,3 +124,13 @@ def test_insert_transfer_valid_data_right_columns_collections(
         "CollectionIdentifier",
         "Count",
     ]
+
+    ## validation
+
+def test_validation_db_return_primary_key(validation_db):
+    configure_validation_db(validation_db)
+    time = "now"
+    validation_action_id = start_validation(time, validation_db)
+    validation_action_id_2 = start_validation(time, validation_db)
+    assert validation_action_id == 1 and validation_action_id_2 == 2
+

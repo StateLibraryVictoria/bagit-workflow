@@ -73,22 +73,44 @@ def configure_validation_db(database_path):
         cur = con.cursor()
         try:
             cur.execute(
-                f"CREATE TABLE IF NOT EXISTS ValidationActions(ValidationActionsId PRIMARY KEY, CountBagsValidated INT, CountBagsWithErrors INT, StartAction, EndAction, Status)"
+                f"CREATE TABLE IF NOT EXISTS ValidationActions(ValidationActionsId INTEGER PRIMARY KEY AUTOINCREMENT, CountBagsValidated INT, CountBagsWithErrors INT, StartAction, EndAction, Status)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table ValidationActions: {e}")
             raise
         try:  # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             cur.execute(
-                "CREATE TABLE IF NOT EXISTS ValidationOutcome(OutcomeIdentifier INTEGER PRIMARY KEY, ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime)"
+                "CREATE TABLE IF NOT EXISTS ValidationOutcome(OutcomeIdentifier INTEGER PRIMARY KEY AUTOINCREMENT, ValidationActionsId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table ValidationOutcome: {e}")
             raise
 
 
-def start_validation_action():
-    pass
+def start_validation(begin_time, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO ValidationActions(CountBagsValidated, CountBagsWithErrors, StartAction, EndAction, Status) VALUES (?, ?, ?, ?, ?)",
+                (
+                    0,
+                    0, 
+                    begin_time,
+                    None,
+                    "Running"
+                ),
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
+            return None
+        try:
+            i = cur.execute("SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC")
+            identifier = i.fetchone()[0]
+            return identifier
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
+            return None
 
 
 def insert_validation_outcome(
@@ -105,7 +127,7 @@ def insert_validation_outcome(
         cur = con.cursor
         try:
             cur.execute(
-                "INSERT INTO ValidationOutcome(ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO ValidationOutcome(ValidationActionsId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     validation_action_id,
                     baguuid,
