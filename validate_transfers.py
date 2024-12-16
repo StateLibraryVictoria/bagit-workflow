@@ -58,12 +58,17 @@ def main():
     
 
     for collection in collections:
-        if not os.path.isdir(collection):
+        col_dir = os.path.join(archive_dir, collection)
+        if os.path.isfile(col_dir):
             continue
-        transfers = os.listdir(collection)
+        
+        transfers = os.listdir(col_dir)
         for transfer in transfers:
+            transfer_dir = os.path.join(col_dir, transfer)
+            if not os.path.isdir(transfer_dir):
+                continue
             validation_start_time = datetime.now(timezone.utc)
-            bag_path = os.path.join(archive_dir,collection,transfer)
+            bag_path = os.path.join(archive_dir,collection,transfer_dir)
             try:
                 bag = bagit.Bag(bag_path)
             except Exception as e:
@@ -73,8 +78,10 @@ def main():
             baguuid = bag.info[UUID_ID]
             try:
                 bag.validate()
+                logger.info(f"Validated bag at: {bag_path}")
                 errors = None
             except bagit.BagValidationError as e:
+                logger.warning(f"Error validating bag at {bag_path} with UUID {baguuid}: {e}")
                 errors = f"{e}"
             validation_end_time = datetime.now(timezone.utc)
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
@@ -91,7 +98,7 @@ def main():
         except Exception as e:
             logger.error(f"Error reading ValidationActions from database: {e}")
         try:
-            df2 = pd.read_sql_query(f"SELECT * from ValiationOutcome WHERE ValidationActionsId={validation_action_id}",con)
+            df2 = pd.read_sql_query(f"SELECT * from ValidationOutcome WHERE ValidationActionsId={validation_action_id}",con)
         except Exception as e:
             logger.error(f"Error reading ValidationOutcome database: {e}")
 
