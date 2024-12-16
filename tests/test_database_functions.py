@@ -134,3 +134,24 @@ def test_validation_db_return_primary_key(validation_db):
     validation_action_id_2 = start_validation(time, validation_db)
     assert validation_action_id == 1 and validation_action_id_2 == 2
 
+def test_add_validation_outcome_updates_action_pass(validation_db):
+    configure_validation_db(validation_db)
+    time = "now"
+    validation_action_id = start_validation(time, validation_db)
+    insert_validation_outcome(validation_action_id, "1234",True,None,"bag/path","now","later",validation_db)
+    db = sqlite3.connect(validation_db)
+    cur = db.cursor()
+    result_pass = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[1]
+    result_fail = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[2]
+    assert result_pass == 1 and result_fail == 0
+
+def test_add_validation_outcome_updates_action_fail(validation_db):
+    configure_validation_db(validation_db)
+    time = "now"
+    validation_action_id = start_validation(time, validation_db)
+    insert_validation_outcome(validation_action_id, "1234",False,None,"bag/path","now","later",validation_db)
+    db = sqlite3.connect(validation_db)
+    cur = db.cursor()
+    result_pass = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[1]
+    result_fail = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[2]
+    assert result_pass == 0 and result_fail == 1

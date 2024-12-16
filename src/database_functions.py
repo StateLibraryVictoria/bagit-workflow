@@ -109,7 +109,7 @@ def start_validation(begin_time, db_path):
             identifier = i.fetchone()[0]
             return identifier
         except sqlite3.DatabaseError as e:
-            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
+            logger.error(f"Error inserting record into ValidationActions table: {e}")
             return None
 
 
@@ -124,7 +124,20 @@ def insert_validation_outcome(
     db_path,
 ):
     with get_db_connection(db_path) as con:
-        cur = con.cursor
+        cur = con.cursor()
+        if outcome:
+            try:
+                cur.execute("UPDATE ValidationActions SET CountBagsValidated = CountBagsValidated + 1 WHERE ValidationActionsId =?", 
+                            (validation_action_id,))
+            except sqlite3.DatabaseError as e:
+                logger.error(f"Error updating record into ValidationActions table for action {validation_action_id}: {e}")
+        else: 
+            try:
+                cur.execute("UPDATE ValidationActions SET CountBagsWithErrors = CountBagsWithErrors + 1 WHERE ValidationActionsId =?", 
+                            (validation_action_id,))
+            except sqlite3.DatabaseError as e:
+                logger.error(f"Error updating record into ValidationActions table for action {validation_action_id}: {e}")
+        outcome = "Pass" if outcome else "Fail"
         try:
             cur.execute(
                 "INSERT INTO ValidationOutcome(ValidationActionsId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime) VALUES (?, ?, ?, ?, ?, ?, ?)",
