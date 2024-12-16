@@ -106,11 +106,17 @@ def main():
             logger.error(f"Error reading ValidationOutcome database: {e}")
 
     html_start = """<!DOCTYPE html>
-    <html>
-        <head>
-            <title>Validation Report</title>
-        </head>
-    <body>"""
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Validation Report</title>
+    <style>
+	body {
+	  font-family: "Andale Mono", monospace;
+	}
+	</style>
+</head>
+<body>"""
 
     html_top=f"<h1>Validation Report: {validation_action_begin}</h1>"
     html_logfile=f"<p>More information available in {logfilename}</p>"
@@ -122,6 +128,7 @@ def main():
     report_file=os.path.join(report_dir,"validation_report.html")
     try:
         with open(report_file, 'a') as f:
+            f.write(html_start)
             f.write(html_top)
             f.write(html_logfile)
             f.write(html_overview)
