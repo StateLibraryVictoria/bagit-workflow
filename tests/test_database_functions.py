@@ -39,7 +39,12 @@ def validation_db(tmp_path):
     database = dir / "database.db"
     yield database
 
-
+@pytest.fixture()
+def configured_validation_db_started(validation_db):
+    configure_validation_db(validation_db)
+    time = "now"
+    validation_action_id = start_validation(time, validation_db)
+    yield (validation_db, validation_action_id)
 
 # test_configure_transfer_db
 def test_configure_transfer_db(database_path):
@@ -168,3 +173,12 @@ def test_add_validation_outcome_updates_outcome(validation_db):
     outcomes = cur.execute("SELECT * FROM ValidationOutcome;").fetchall()
     print(outcomes[0])
     assert outcomes == [(1, 1, '2222', 'Pass', None, 'bag/path/1', 'now', 'later'),(2, 1, '1234', 'Fail', 'Error validating bag', 'bag/path', 'now', 'later')]
+
+def test_end_validation_sets_status_to_complete(configured_validation_db_started):
+    validation_action_id = configured_validation_db_started[1]
+    end_validation(validation_action_id,"now",configured_validation_db_started[0])
+    db = sqlite3.connect(configured_validation_db_started[0])
+    cur = db.cursor()
+    # ValidationActionsId INTEGER PRIMARY KEY AUTOINCREMENT, CountBagsValidated INT, CountBagsWithErrors INT, StartAction, EndAction, Status
+    outcomes = cur.execute("SELECT * FROM ValidationActions;").fetchall()
+    assert len(outcomes) == 1 and outcomes[0][5] == "Complete"

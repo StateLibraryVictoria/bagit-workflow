@@ -111,7 +111,23 @@ def start_validation(begin_time, db_path):
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting record into ValidationActions table: {e}")
             return None
-
+        
+def end_validation(validation_action_id, end_time, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute("UPDATE ValidationActions SET EndAction =?, Status='Complete' WHERE ValidationActionsId =?", 
+                            (end_time, validation_action_id,))
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
+            return None
+        try:
+            i = cur.execute("SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC")
+            identifier = i.fetchone()[0]
+            return identifier
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationActions table: {e}")
+            return None
 
 def insert_validation_outcome(
     validation_action_id,
