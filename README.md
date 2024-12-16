@@ -134,13 +134,16 @@ Integrity checks are tracked using a separate database with the following tables
 ### Testing
 
 Some tests have been created for:
-- `TriggerFile` class
-- `IdParser` class
-- `Transfer` interface for `TransferType` classes to handle bagged vs new transfers
-- `__main__()` in `bagit_transfer.py` (though these need enhancing)
+- `helper_functions`  
+        - `TriggerFile` class  
+        - `IdParser` class  
+        - `Transfer` interface for `TransferType` classes to handle bagged vs new transfers  
+- `database_functions`  
+- transfer runner (`bagit_transfer.py`) **need enhancing**  
 
 ## Development
 
 To do:
-- Bag validation workflow.
-- Unit tests for transfer process, edge cases.
+- Improve test coverage
+- Improve error handling
+- Data validation for db inputs
