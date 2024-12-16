@@ -10,10 +10,11 @@ This is a basic workflow for archiving data as BagIt bags. The process is intend
 
 - [bagit](https://github.com/LibraryOfCongress/bagit-python)
 - [Pytest](https://docs.pytest.org/en/stable/)
+- [pandas](https://pandas.pydata.org/) *report generation only*  
 - Python 3.11
-- Environment:
-        - Script running on a Linux server.
-        - Transfer directory in a Windows environment.
+- Environment:  
+        - Script running on a Linux server.  
+        - Transfer directory in a Windows environment.  
 
 
 ### Process overview
