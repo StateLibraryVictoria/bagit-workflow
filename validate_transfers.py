@@ -53,14 +53,16 @@ def main():
     collections = os.listdir(archive_dir)
 
     # create the ValidationAction entry here. Get the Primary key to pass to the next function
-    validation_action_begin = datetime.now(timezone.utc())
+    validation_action_begin = datetime.now(timezone.utc)
     validation_action_id = start_validation(validation_action_begin,validation_db)
     
 
     for collection in collections:
+        if not os.path.isdir(collection):
+            continue
         transfers = os.listdir(collection)
         for transfer in transfers:
-            validation_start_time = datetime.now(timezone.utc())
+            validation_start_time = datetime.now(timezone.utc)
             bag_path = os.path.join(archive_dir,collection,transfer)
             try:
                 bag = bagit.Bag(bag_path)
@@ -74,18 +76,24 @@ def main():
                 errors = None
             except bagit.BagValidationError as e:
                 errors = f"{e}"
-            validation_end_time = datetime.now(timezone.utc())
+            validation_end_time = datetime.now(timezone.utc)
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
             insert_validation_outcome(validation_action_id, baguuid, str(errors==None), errors, bag_path, validation_start_time, validation_end_time, validation_db)
     
-    validation_action_end = datetime.now(timezone.utc())
+    validation_action_end = datetime.now(timezone.utc)
     end_validation(validation_action_id, validation_action_end, validation_db)
 
     # build a basic report and output to html.
     with get_db_connection(validation_db) as con:
-        df = pd.read_sql_query(f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}", con)
-        df2 = pd.read_sql_query(f"SELECT * from ValiationOutcome WHERE ValidationActionsId={validation_action_id}",con)
+        try:
+            df = pd.read_sql_query(f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}", con)
+        except Exception as e:
+            logger.error(f"Error reading ValidationActions from database: {e}")
+        try:
+            df2 = pd.read_sql_query(f"SELECT * from ValiationOutcome WHERE ValidationActionsId={validation_action_id}",con)
+        except Exception as e:
+            logger.error(f"Error reading ValidationOutcome database: {e}")
 
     html_start = """<!DOCTYPE html>
     <html>
@@ -94,7 +102,7 @@ def main():
         </head>
     <body>"""
 
-    html_top=f"<h1>Validation Report: {start_validation}</h1>"
+    html_top=f"<h1>Validation Report: {validation_action_begin}</h1>"
     html_logfile=f"<p>More information available in {logfilename}</p>"
     html_overview = "<h2>Report Overview</h2>"
     html_detail = "<h2>Validation Outcomes</h2>"
@@ -102,14 +110,17 @@ def main():
 </html>"""
 
     report_file=os.path.join(report_dir,"validation_report.html")
-    with open(report_file, 'a') as f:
-        f.write(html_top)
-        f.write(html_logfile)
-        f.write(html_overview)
-        f.write(df.to_html())
-        f.write(html_detail)
-        f.write(df2.to_html())
-        f.write(html_end)
+    try:
+        with open(report_file, 'a') as f:
+            f.write(html_top)
+            f.write(html_logfile)
+            f.write(html_overview)
+            f.write(df.to_html())
+            f.write(html_detail)
+            f.write(df2.to_html())
+            f.write(html_end)
+    except Exception as e:
+        logger.error(f"Failed to write report file to {report_file}: {e}")
 
 
 if __name__ == "__main__":
