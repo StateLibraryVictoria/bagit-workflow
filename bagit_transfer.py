@@ -128,7 +128,7 @@ def main():
                 if output_bag.is_valid():
                     try:
                         insert_transfer(folder, bag, primary_id, manifest_hash, copy_time, database)
-                        cleanup_transfer(folder)
+                        tf.cleanup_transfer()
                     except Exception as e:
                         logger.error(
                             f"Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
