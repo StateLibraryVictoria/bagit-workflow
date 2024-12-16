@@ -72,7 +72,11 @@ def main():
                 logger.error(f"Error validating bag {bag_path}: {e}")
                 # update database with failure
                 continue
-            baguuid = bag.info[UUID_ID]
+            try:
+                baguuid = bag.info[UUID_ID]
+            except KeyError as e:
+                logger.error(f"Error parsing UUID from bag {bag_path}: {e}")
+                baguuid = None
             try:
                 bag.validate()
                 logger.info(f"Validated bag at: {bag_path}")
@@ -80,6 +84,8 @@ def main():
             except bagit.BagValidationError as e:
                 logger.warning(f"Error validating bag at {bag_path} with UUID {baguuid}: {e}")
                 errors = f"{e}"
+            uuid_error = "Bag UUID not present in bag-info.txt"
+            errors = errors if baguuid is not None else (uuid_error if errors is None else errors +";"+ uuid_error)
             validation_end_time = datetime.now(timezone.utc)
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
