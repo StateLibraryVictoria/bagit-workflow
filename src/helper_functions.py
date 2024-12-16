@@ -148,6 +148,13 @@ class TriggerFile:
     def set_in_process(self) -> None:
         self._set_status(".processing")
 
+    def cleanup_transfer(self) -> None:
+        """Remove trigger file and directory. Won't work on collections with an error status."""
+        if not self.status == ".error":
+            shutil.rmtree(self.name)
+            if os.path.isfile(self.filename):
+                os.remove(self.filename)
+
 
 class IdParser:
     """Parser for pulling identifiers from strings based on config.
@@ -338,11 +345,6 @@ def compute_manifest_hash(folder):
     return hash_sha256.hexdigest()
 
 # bagit_transfer functions
-
-def cleanup_transfer(folder):
-    shutil.rmtree(folder)
-    if os.path.isfile(f"{folder}.ok"):
-        os.remove(f"{folder}.ok")
 
 def load_id_parser():
     # Assumes the identifiers will be final value or followed by " ", "_" or "-".
