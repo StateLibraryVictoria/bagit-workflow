@@ -1,9 +1,10 @@
 import bagit
 from datetime import datetime, timezone
 import os
+import pandas as pd
 import sqlite3
-from helper_functions import *
-from database_functions import *
+from src.helper_functions import *
+from src.database_functions import *
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ def load_config():
         "LOGGING_DIR": os.getenv("LOGGING_DIR"),
         "VALIDATION_DB": os.getenv("VALIDATION_DB"),
         "DATABASE": os.getenv("DATABASE"),
+        "REPORT_DIR": os.getenv("REPORT_DIR"),
     }
     return config
 
@@ -29,7 +31,7 @@ def main():
     logging_dir = config.get("LOGGING_DIR")
     archive_dir = config.get("ARCHIVE_DIR")
     validation_db = config.get("VALIDATION_DB")
-    transfer_db = config.get("DATABASE")
+    report_dir = config.get("REPORT_DIR")
 
     logfilename = f"{time.strftime('%Y%m%d')}_bagit_validation_action.log"
     logfile = os.path.join(logging_dir, logfilename)
@@ -80,6 +82,34 @@ def main():
     validation_action_end = datetime.now(timezone.utc())
     end_validation(validation_action_id, validation_action_end, validation_db)
 
+    # build a basic report and output to html.
+    with get_db_connection(validation_db) as con:
+        df = pd.read_sql_query(f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}", con)
+        df2 = pd.read_sql_query(f"SELECT * from ValiationOutcome WHERE ValidationActionsId={validation_action_id}",con)
+
+    html_start = """<!DOCTYPE html>
+    <html>
+        <head>
+            <title>Validation Report</title>
+        </head>
+    <body>"""
+
+    html_top=f"<h1>Validation Report: {start_validation}</h1>"
+    html_logfile=f"<p>More information available in {logfilename}</p>"
+    html_overview = "<h2>Report Overview</h2>"
+    html_detail = "<h2>Validation Outcomes</h2>"
+    html_end = """</body>
+</html>"""
+
+    report_file=os.path.join(report_dir,"validation_report.html")
+    with open(report_file, 'a') as f:
+        f.write(html_top)
+        f.write(html_logfile)
+        f.write(html_overview)
+        f.write(df.to_html())
+        f.write(html_detail)
+        f.write(df2.to_html())
+        f.write(html_end)
 
 
 if __name__ == "__main__":
