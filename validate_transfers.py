@@ -46,9 +46,6 @@ def main():
     except sqlite3.OperationalError as e:
         print(f"Error configuring database: {e}")
 
-    with get_db_connection(validation_db) as con:
-        cur = con.cursor()
-
     # get list of transfers
     collections = os.listdir(archive_dir)
 
