@@ -20,7 +20,7 @@ This is a basic workflow for archiving data as BagIt bags. The process is intend
 
 Limitations: This process is designed to support processing of data compatible with a Windows filesystem. It cannot handle files with multiple filestreams. 
 
-#### Transfer workflow
+### Transfer workflow
 
 ![Transfer Activity Diagram](docs/Bagit-Workflow-Activity-Diagram.jpg)
 
@@ -51,7 +51,7 @@ Example `.bat` script for empty file:
                 if not exist %%i.error (
                 .> %%i.ok))
 
-### Trigger file handling
+#### Trigger file handling
 
 Required metadata fields are configured in the `.env` file. See `env.example` for example fields. Additional fields can be included, but expects at least these.
 
@@ -74,7 +74,7 @@ See the class diagram below for a more comprehensive outline:
 ![Class Diagram](docs/Bagit-Workflow-Class-Diagram.jpg)
 
 
-### Configured tags and identifiers
+#### Configured tags and identifiers
 
 The following tags are hard-coded into `src/helper_functions.py`:
 
@@ -84,7 +84,7 @@ The following tags are hard-coded into `src/helper_functions.py`:
                 EXTERNAL_DESCRIPTION = "External-Description"
 
 
-### Copying to output directory
+#### Copying to output directory
 
 Copying is handled in the runner script (`bagit_transfer.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`.
 
@@ -92,7 +92,20 @@ A sqlite3 database is used to store a record of collections (folders) and transa
 
 In the output location, files are stored in the transfer folder they were submitted from, within a subfolder t1 that increments as transfers are added.
 
-### Sqlite3 database
+### Validation process
+
+Validation is handled by running bagit over files in the archive directory and writing the results to a Sqlite3 database. This database is separate from the transfers database, though theoretically they could be the same. 
+
+The script operates in the following way:
+- Generates a list of all collections in the supplied directory.  
+- Creates an entry in the ValidationActions table to keep track of the number of successful/unsuccessful transfers.
+- Validates each transfer within the directory.  
+- Records information in the database.
+- Once all directories have been checked, sets the status of the ValidationAction to 'Completed'.
+
+![Validation activity diagram](/docs/Bagit-Workflow-Validation-Action-Activity.jpg)
+
+### Sqlite3 databases
 
 Transfers are tracked using a `sqlite3` database with the following tables:
 
@@ -110,6 +123,8 @@ Transfers are tracked using a `sqlite3` database with the following tables:
 **Entity Relationship Diagram**
 
 ![Entity Relationship Diagram](docs/Bagit-Workflow-Entity-Relationship-Diagram.jpg)
+
+
 Integrity checks are tracked using a separate database with the following tables:
 - `ValidationActions` contains a record for every time the script is run, with a count of successful and unsucessful validation checks.
         - Primary key: `ValidationActionId` (INT PRIMARY KEY)  
@@ -122,7 +137,7 @@ Integrity checks are tracked using a separate database with the following tables
         - `OutcomeIdentifier` INTEGER PRIMARY KEY.  
         - `ValidationActionId` Correlation id to the ValiationActions table.   
         - `BagUUID`- UUID from the Bag metadata for the bag checked.   
-        - `Outcome`- Valid or Invalid.    
+        - `Outcome`- Pass or Fail.    
         - `Errors`- Error message for the failing exception.   
         - `BagPath` - Location of the bag being checked.    
         - `StartTime`- Time that processing commenced.  
