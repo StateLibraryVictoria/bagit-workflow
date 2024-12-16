@@ -83,7 +83,7 @@ def main():
             validation_end_time = datetime.now(timezone.utc)
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
-            insert_validation_outcome(validation_action_id, baguuid, str(errors==None), errors, bag_path, validation_start_time, validation_end_time, validation_db)
+            insert_validation_outcome(validation_action_id, baguuid, errors==None, errors, bag_path, validation_start_time, validation_end_time, validation_db)
     
     validation_action_end = datetime.now(timezone.utc)
     end_validation(validation_action_id, validation_action_end, validation_db)
