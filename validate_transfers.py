@@ -50,10 +50,10 @@ def main():
     # get list of transfers
     collections = os.listdir(archive_dir)
 
-
+    # create the ValidationAction entry here. Get the Primary key to pass to the next function
     validation_action_begin = datetime.now(timezone.utc())
     validation_action_id = start_validation(validation_action_begin,validation_db)
-    # create the ValidationAction entry here. Get the Primary key to pass to the next function
+    
 
     for collection in collections:
         transfers = os.listdir(collection)
@@ -74,12 +74,12 @@ def main():
                 errors = f"{e}"
             validation_end_time = datetime.now(timezone.utc())
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
-            # update both databases
+            # update both tables to reflect bag validation outcome.
             insert_validation_outcome(validation_action_id, baguuid, str(errors==None), errors, bag_path, validation_start_time, validation_end_time, validation_db)
     
-    end_validation_action = datetime.now(timezone.utc())
-    # ValidationActionId, CountBagsValidated, CountBagsWithErrors, StartTime, EndTime, Status [completed, failed]
-    # add end time to validation action event.
+    validation_action_end = datetime.now(timezone.utc())
+    end_validation(validation_action_id, validation_action_end, validation_db)
+
 
 
 if __name__ == "__main__":
