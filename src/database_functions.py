@@ -1,6 +1,7 @@
 import bagit
 import sqlite3
 import time
+import pandas as pd
 from contextlib import contextmanager
 from src.shared_constants import *
 
@@ -193,3 +194,34 @@ def insert_transfer(
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
+
+def dump_database_tables_to_html(db_paths: dict={"transfer" :None, "validation" :None}, db_tables: dict={"transfer":[],"validation":[]}) -> str:
+    html_start = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Validation Report</title>
+    <style>
+	body {
+	  font-family: "Andale Mono", monospace;
+	}
+	</style>
+</head>
+<body>"""
+    html_body = ""
+    for database in ["transfer", "validation"]:
+        if db_paths.get(database) is not None:
+            tables = db_tables.get(database)
+            if tables is not None:
+                html_body += f"<h2>Records of {database}</h2>"
+                with get_db_connection(db_paths.get(database)) as con:
+                    for table in tables:
+                        df = pd.read_sql_query(f"SELECT * from {table}", con)
+                        html_body += f"<h2>Contents of table {table}</h2>"
+                        html_body += df.to_html()
+
+    html_end = """</body>
+</html>"""
+    html = html_start + html_body + html_end
+    return html
+
