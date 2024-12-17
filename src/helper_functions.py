@@ -237,23 +237,28 @@ class IdParser:
         return ids
 
 class Transfer(ABC):
+    """Transfer interface declares operations common to all transfer types."""
 
     @abstractmethod
     def build_metadata(self, path: str, id_parser: IdParser):
         pass
 
     @abstractmethod
-    def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
+    def make_bag(self, path: str, metadata: dict):
         pass
 
 
 class BagTransfer(Transfer):
-    def build_metadata(self, path: str, id_parser: IdParser):
+    """Concrete Transfer class for handling Bagged data."""
+
+    def build_metadata(self, path: str, id_parser: IdParser) -> dict:
+        """Loads metadata from baginfo.txt"""
         bag = bagit.Bag(path)
         metadata = bag.info
         return metadata
     
     def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
+        """Loads a bag and replaces any metadata keys with values supplied in a dict."""
         bag = bagit.Bag(path)
         for key in metadata.keys():
             bag.info[key] = metadata.get(key)
@@ -262,11 +267,17 @@ class BagTransfer(Transfer):
 
 
 class NewTransfer(Transfer):
+    """Concrete Transfer class for handling unbagged folders of data."""
+
     def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
+        """Run BagIt on a folder with supplied metadata dictionary."""
         bag = bagit.make_bag(path, bag_info=metadata)
         return bag
 
-    def build_metadata(self, path: str, id_parser: IdParser):
+    def build_metadata(self, path: str, id_parser: IdParser) -> dict:
+        """Parses and structures key metadata values based on folder properties.
+        Folder name must contain identifier.
+        """
         root, filename = os.path.split(path)
         owner = self._get_dir_owner(path)
         identifier = id_parser.get_ids(path)
@@ -277,9 +288,9 @@ class NewTransfer(Transfer):
             }
         return metadata
 
-    def _get_dir_owner(self, path):
-        regex_pattern = r"STAFF.*"
-        capturing_pattern = "STAFF\\\\([A-Za-z]+)\s"
+    def _get_dir_owner(self, path: str, regex_pattern: str="STAFF.*", capturing_pattern: str="STAFF\\\\([A-Za-z]+)\s") -> str:
+        "Get the folder owner label as a string."
+
         root, folder = os.path.split(path)
         try:
             filepath = Path(root)
@@ -312,7 +323,10 @@ class NewTransfer(Transfer):
 
 
 class TransferType:
+    """TransferType defines the interfaces that will be used to process transfers."""
+
     def __init__(self, transfer: Transfer) -> None:
+        """Set Transfer object at runtime"""
         self._transfer = transfer
 
     @property
@@ -323,11 +337,11 @@ class TransferType:
     def transfer(self, transfer: Transfer) -> None:
         self._transfer = transfer
 
-    def build_metadata(self, path: str, id_parser: IdParser):
+    def build_metadata(self, path: str, id_parser: IdParser) -> dict:
         metadata = self._transfer.build_metadata(path, id_parser)
         return metadata
     
-    def make_bag(self, path: str, metadata: dict):
+    def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
         bag = self._transfer.make_bag(path, metadata)
         return bag
     
