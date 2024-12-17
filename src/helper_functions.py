@@ -379,27 +379,7 @@ def compute_manifest_hash(folder):
 # bagit_transfer functions
 
 def load_id_parser():
-    # Assumes the identifiers will be final value or followed by " ", "_" or "-".
-    final = "(?=[_-]|\\s|$)"
-    # Assumes identifier parts will be separated by "-", "." or "_".
-    sep = "[\\-\\._]?\\s?"
-    identifier_pattern = (
-        # SC numbers
-        f"(SC{sep}\\d{{4,}}{final})|"
-        # RA numbers
-        f"(RA{sep}\\d{{4}}{sep}\\d+{final})|"
-        # PA numbers
-        f"(PA{sep}\\d\\d)(\\d\\d)?({sep}\\d+{final})|"
-        # MS numbers
-        f"(MS{sep}\\d{{2,}}{final})|"
-        # capture case for PO numbers that should fail validation
-        f"(PO{sep}\\d+{sep}slvdb){final}|"
-        # Legacy purchase orders
-        f"(POL{sep})?(\\d{{3,}}{sep}slvdb){final}|"
-        # Current purchase orders
-        f"(POL{sep}\\d{{3,}}{final})|"
-        # H numbers
-        f"(H\\d\\d)(\\d\\d)?({sep}\\d+){final}"
-    )
-    validation_pattern = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+"
+    """Returns configured IdParser based on regex in shared_constants.py"""
+    identifier_pattern = IDENTIFIER_REGEX
+    validation_pattern = VALIDATION_REGEX
     return IdParser(validation_pattern, identifier_pattern)
