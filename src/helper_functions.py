@@ -348,12 +348,21 @@ def guess_primary_id(identifiers: list) -> str:
 
 
 
-def timed_rsync_copy(folder, output_dir):
+def timed_rsync_copy(folder, output_dir) -> float:
+    """Copies data from folder to output_dir using rsync subprocess with -vrlt flags.
+    Returns the time processing takes as a float using time.perf_counter().
+
+    Keyword arguments:
+    folder -- path to data for copying
+    output_dir -- location to copy to
+    """
+    process = "rsync"
+    flags = "-vrlt" # verbose, recursive, links, times (preserve modification times), 
     start = time.perf_counter()
     # may need to add bandwith limit --bwlimit=1000
     try:
         result = subprocess.run(
-            ["rsync", "-vrlt", "--checksum", f"{folder}/", output_dir], check=True
+            [process, flags, "--checksum", f"{folder}/", output_dir], check=True
         )
         logger.info(result.stdout)
         if result.stderr:
