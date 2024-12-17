@@ -203,17 +203,31 @@ class IdParser:
             return None
         return re.fullmatch(self.valid_pattern, id) is not None
 
-    def normalise_id(self, id):
-        """Normalise ids to facilitate easy searching"""
+    def normalise_id(self, 
+                     id: str, 
+                     default_regex: str="[_\.]|\s",
+                     replace_with: str="-",
+                     tests: list=[r"(MS)(\d+)",r"(SC)\D?(\d+)"], 
+                     join_by: list=["-",""]):
+        """Normalise based on patterns for easy searching.
+        Defaults to replacing underscores, periods and whitespace with hyphens.
+        Includes optional list of regex tests with matchgroups and delimeters to 
+        address specific issues.
+        
+        Keyword arguments:
+        id -- identifier to be normalised
+        default_regex -- matching patterns will be replaced (default "[_\.]|\s")
+        replace_with -- what default_regex is replaced with (default "-")
+        tests -- patterns with capturing groups to match and rejoin (default [r"(MS)(\d+)",r"(SC)\D?(\d+)"])
+        join_by -- correlating delimters for joins (default ["-",""])
+        """
         # check if id is a MS number.
-        ms_test = re.match(r"(MS)(\d+)", id)
-        sc_test = re.match(r"(SC)\D?(\d+)", id)
-        if ms_test is not None:
-            norm_id = "-".join(ms_test.groups())
-        elif sc_test is not None:
-            norm_id = "".join(sc_test.groups())
-        else:
-            norm_id = re.sub("[_\.]|\s", "-", id)
+        norm_id = norm_id = re.sub(default_regex, replace_with, id)
+        if tests is not None and join_by is not None and ((len(tests)==len(join_by))):
+            for i in range(len(tests)):
+                results = re.match(tests[i],id)
+                if results is not None:
+                    norm_id = join_by[i].join(results.groups())
         if norm_id != id:
             logger.info(f"Normalised id {id} to {norm_id}")
         return norm_id
