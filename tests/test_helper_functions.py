@@ -281,10 +281,11 @@ def test_compute_manifest_hash(manifest_filepath):
 
 
 # test_cleanup_transfer
-def test_cleaup_transfer(invalid_trigger_path):
-    cleanup_transfer(invalid_trigger_path / "invalid_trigger")
-    ok_files = os.listdir(invalid_trigger_path)
-    assert len(ok_files) == 0
+def test_cleaup_transfer(valid_trigger_file,id_parser):
+    tf = TriggerFile(valid_trigger_file,id_parser)
+    path = tf.get_directory()
+    tf.cleanup_transfer()
+    assert not os.path.exists(path)
 
 # test guessing primary id
 @pytest.mark.parametrize(
