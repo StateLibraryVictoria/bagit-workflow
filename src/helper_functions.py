@@ -39,7 +39,12 @@ class TriggerFile:
         self.transfer_type = TransferType(NewTransfer())
         self.metadata = self.load_metadata()
 
-    def load_metadata(self):
+    def load_metadata(self) -> dict:
+        """Creates a dictionary of metadata tags and values.
+        
+        If directory contains bag-info.txt, will set the transfer type to BagTransfer,
+        otherwise processes as a NewTransfer.
+        """
         bag_info = os.path.join(self.name, "bag-info.txt")
         if os.path.isfile(bag_info):
             logging.info(
@@ -49,13 +54,20 @@ class TriggerFile:
         metadata = self.transfer_type.build_metadata(path=self.name, id_parser=self.id_parser)
         return metadata
 
-    def get_metadata(self):
+    def get_metadata(self) -> dict:
+        """Returns the stored metadata dictionary."""
         return self.metadata
 
-    def get_directory(self):
+    def get_directory(self) -> str:
+        """Returns the path to the directory being triggered for processing."""
         return self.name
 
-    def set_error(self, error):
+    def set_error(self, error: str) -> None:
+        """Set an error that will be written to the original trigger file.
+        
+        Keyword arguments:
+        error -- Text to be written to error file.
+        """
         self._set_status(".error")
         try:
             with open(self.filename, "a") as f:
@@ -63,7 +75,12 @@ class TriggerFile:
         except PermissionError as e:
             logger.error(f"Error writing to file: {e}")
 
-    def validate(self):
+    def validate(self) -> bool:
+        """Returns True if path exists, the folder has data, and file has minimum metadata.
+        
+        If any condition fails, the TriggerFile status is updated to .error and errors are written
+        to .error file.
+        """
         logger.info(f"Verifying transfer: {self.name}")
         errors = []
         if not os.path.exists(self.name):
@@ -90,7 +107,13 @@ class TriggerFile:
                 logger.error(f"Error writing to file: {e}")
             return False
 
-    def _set_status(self, new_status):
+    def _set_status(self, new_status: str) -> None:
+        """Set TriggerFile status to new value. This renames the file.
+
+        Keyword arguments:
+        new_status -- keyword used as file extension to indicate status.
+        """
+        new_status = new_status.replace(" ","")
         new_name = f"{self.name}{new_status}"
         try:
             os.rename(self.filename, new_name)
@@ -100,14 +123,16 @@ class TriggerFile:
         except Exception as e:
             logger.error(f"Failed to rename file: {self.filename} to {new_name}")
 
-    def _check_metadata(self):
+    def _check_metadata(self) -> bool:
+        """Validates minimum metadata"""
         if self.metadata == None:
             logger.error("Metadata could not be parsed from file.")
             return False
         else:
             return self._check_ids()
     
-    def _check_ids(self):
+    def _check_ids(self) -> bool:
+        """Confirms a collection id is present. Adds a UUID if not present."""
         collection_id = self.metadata.get(PRIMARY_ID)
         logger.warning(self.metadata)
         transfer_id = self.metadata.get(UUID_ID)
@@ -118,7 +143,8 @@ class TriggerFile:
             logger.warning("Adding uuid to item.")
         return has_collection_id
 
-    def _has_uuid(self, ids: list):
+    def _has_uuid(self, ids: list) -> bool:
+        """Checks each identifier and returns True if any can be parsed as a UUID."""
         parsed_uuid = []
         if ids is not None and ids !=0:
             for id in ids:
@@ -130,11 +156,13 @@ class TriggerFile:
                     logger.debug(f"Failed to parse uuid from {id}")
         return len(parsed_uuid) != 0
     
-    def _add_uuid(self):
+    def _add_uuid(self) -> None:
+        """Adds a UUID to the UUID field. Will overwrite any other ids in this field."""
         transfer_id = str(uuid.uuid4())
         self.metadata.update({UUID_ID: transfer_id})
 
-    def _has_collection_id(self, ids: list):
+    def _has_collection_id(self, ids: list) -> bool:
+        """Uses IdParser to parse or validate collection identifiers."""
         if ids is None or len(ids) == 0:
             # try to parse from folder title
             ids = self.id_parser.get_ids(self.name, normalise=True)
@@ -150,12 +178,10 @@ class TriggerFile:
         return False
     
     def make_bag(self) -> bagit.Bag:
-        self.set_in_process()
+        """Builds a BagIt Bag based on transfer type."""
+        self._set_status(".processing")
         bag = self.transfer_type.make_bag(self.name, self.metadata)
         return bag
-
-    def set_in_process(self) -> None:
-        self._set_status(".processing")
 
     def cleanup_transfer(self) -> None:
         """Remove trigger file and directory. Won't work on collections with an error status."""
