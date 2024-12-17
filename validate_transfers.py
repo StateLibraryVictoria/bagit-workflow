@@ -1,5 +1,5 @@
 import bagit
-from datetime import datetime, timezone
+from datetime import datetime
 import os
 import sqlite3
 from src.helper_functions import *
@@ -49,7 +49,7 @@ def main():
     collections = os.listdir(archive_dir)
 
     # create the ValidationAction entry here. Get the Primary key to pass to the next function
-    validation_action_begin = datetime.now(timezone.utc)
+    validation_action_begin = datetime.now()
     validation_action_id = start_validation(validation_action_begin,validation_db)
     
 
@@ -63,7 +63,7 @@ def main():
             transfer_dir = os.path.join(col_dir, transfer)
             if not os.path.isdir(transfer_dir):
                 continue
-            validation_start_time = datetime.now(timezone.utc)
+            validation_start_time = datetime.now()
             bag_path = os.path.join(archive_dir,collection,transfer_dir)
             try:
                 bag = bagit.Bag(bag_path)
@@ -85,12 +85,12 @@ def main():
                 errors = f"{e}"
             uuid_error = "Bag UUID not present in bag-info.txt"
             errors = errors if baguuid is not None else (uuid_error if errors is None else errors +";"+ uuid_error)
-            validation_end_time = datetime.now(timezone.utc)
+            validation_end_time = datetime.now()
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
             insert_validation_outcome(validation_action_id, baguuid, errors==None, errors, bag_path, validation_start_time, validation_end_time, validation_db)
     
-    validation_action_end = datetime.now(timezone.utc)
+    validation_action_end = datetime.now()
     end_validation(validation_action_id, validation_action_end, validation_db)
 
     # build a basic report and output to html.
