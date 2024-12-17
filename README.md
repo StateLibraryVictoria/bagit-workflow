@@ -24,7 +24,7 @@ Limitations: This process is designed to support processing of data compatible w
 #### Runner scripts
 
 - `bagit_transfer.py` : Bags data and transfers it to a location. Transfers and collections are recorded in a sqlite3 database.    
-- `validate_transfers.py` : Runs validation over every bag in a directory. Each run and each check are recorded in a sqlite3 database. A html report is exported at the end.
+- `validate_transfers.py` : Runs validation over every bag in a directory. Each run and each check are recorded in a sqlite3 database. A html report is exported at the end.    
 - `report_all_databases.py` : Dumps the contents of the databases to html. This is mostly for debugging and won't scale if the databases get too big. 
 
 ### Transfer workflow
@@ -133,7 +133,7 @@ Transfers are tracked using a `sqlite3` database with the following tables:
 
 
 Integrity checks are tracked using a separate database with the following tables:
-- `ValidationActions` contains a record for every time the script is run, with a count of successful and unsucessful validation checks.
+- `ValidationActions` contains a record for every time the script is run, with a count of successful and unsuccessful validation checks.
         - Primary key: `ValidationActionId` (INT PRIMARY KEY)  
         - `CountBagsValidated` INT  
         - `CountBagsWithErrors` INT  
@@ -142,7 +142,7 @@ Integrity checks are tracked using a separate database with the following tables
         - `Status` Completed if entire script completed without errors, Processing if in progress.  
 - `ValidationOutcome` contains a record for every bag checked, correlated to the ValidationAction
         - `OutcomeIdentifier` INTEGER PRIMARY KEY.  
-        - `ValidationActionId` Correlation id to the ValiationActions table.   
+        - `ValidationActionId` Correlation id to the ValidationActions table.   
         - `BagUUID`- UUID from the Bag metadata for the bag checked.   
         - `Outcome`- Pass or Fail.    
         - `Errors`- Error message for the failing exception.   

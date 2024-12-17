@@ -13,7 +13,7 @@ from src.shared_constants import *
 
 
 class TriggerFile:
-    """A class for managing BagIt transfer status using files in a direcotry.
+    """A class for managing BagIt transfer status using files in a directory.
     
     Each TriggerFile object contains filepath information, a status, metadata,
     and helper objects to support different transfer types.
@@ -211,7 +211,7 @@ class IdParser:
                      join_by: list=["-",""]) -> str:
         """Normalise based on patterns for easy searching.
         Defaults to replacing underscores, periods and whitespace with hyphens.
-        Includes optional list of regex tests with matchgroups and delimeters to 
+        Includes optional list of regex tests with matchgroups and delimiters to 
         address specific issues.
         
         Keyword arguments:
@@ -219,7 +219,7 @@ class IdParser:
         default_regex -- matching patterns will be replaced (default "[_\.]|\s")
         replace_with -- what default_regex is replaced with (default "-")
         tests -- patterns with capturing groups to match and rejoin (default [r"(MS)(\d+)",r"(SC)\D?(\d+)"])
-        join_by -- correlating delimters for joins (default ["-",""])
+        join_by -- correlating delimiters for joins (default ["-",""])
         """
         # check if id is a MS number.
         norm_id = norm_id = re.sub(default_regex, replace_with, id)
@@ -403,7 +403,7 @@ def timed_rsync_copy(folder: str, output_dir: str, flags: str="-vrlt") -> float:
     flags -- passed to rsync subprocess, (default -vrlt) 
     """
     start = time.perf_counter()
-    # may need to add bandwith limit --bwlimit=1000
+    # may need to add bandwidth limit --bwlimit=1000
     try:
         result = subprocess.run(
             ["rsync", flags, "--checksum", f"{folder}/", output_dir], check=True
