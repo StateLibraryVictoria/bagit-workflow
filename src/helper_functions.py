@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import uuid
 import bagit
 import time
@@ -10,15 +9,8 @@ import subprocess
 import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
+from src.shared_constants import *
 
-headers = json.loads(os.getenv("REQUIRED_HEADERS"))
-logger = logging.getLogger(__name__)
-
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
 
 class TriggerFile:
     """A class for managing BagIt transfer status using files in a direcotry.

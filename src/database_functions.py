@@ -1,16 +1,8 @@
 import bagit
 import sqlite3
-import logging
 import time
 from contextlib import contextmanager
-
-logger = logging.getLogger(__name__)
-
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
+from src.shared_constants import *
 
 
 def get_count_collections_processed(primary_id, db_path):
