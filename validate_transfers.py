@@ -95,14 +95,20 @@ def main():
 
     # build a basic report and output to html.
     report_date = time.strftime('%Y%m%d')
-    html = dump_database_tables_to_html(title=f"Validation Report {report_date}",
-                                        db_paths={"validation":validation_db},
-                                        db_tables={"validation":["ValidationActions","ValidationOutcome"]})
+    html_start = html_header("Validation Report")
+    html_action = return_db_query_as_html(validation_db, f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}")
+    html_outcome = return_db_query_as_html(validation_db, f"SELECT * from ValidationOutcome WHERE ValidationActionsId={validation_action_id}")
 
     report_file=os.path.join(report_dir,f"validation_report_{report_date}.html")
     try:
         with open(report_file, 'a') as f:
-            f.write(html)
+            f.write(html_start)
+            f.write("<body>")
+            f.write("<h2>Report Overview</h2>")
+            f.write(html_action)
+            f.write("<h2>Validation Outcomes</h2>")
+            f.write(html_outcome)
+            f.write("</body></html>")
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
