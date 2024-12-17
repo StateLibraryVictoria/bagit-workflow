@@ -40,7 +40,7 @@ def invalid_trigger_file(tmp_path):
 
 
 @pytest.fixture
-def existing_bag_info_file(tmp_path):
+def existing_bag_trigger(tmp_path):
     file = tmp_path / "test_bag.ok"
     dir = tmp_path / "test_bag"
     dir.mkdir()
@@ -126,16 +126,19 @@ def test_validation_succeeds(valid_trigger_file, id_parser):
     assert tf.validate() == True
 
 
-def test_get_metadata_from_bag(
-    existing_bag_info_file, valid_metadata_no_uuid, id_parser
-):
+def test_get_metadata_from_bag(existing_bag_trigger, valid_metadata_no_uuid, id_parser):
     data = valid_metadata_no_uuid
-    tf = TriggerFile(existing_bag_info_file, id_parser)
+    tf = TriggerFile(existing_bag_trigger, id_parser)
     # clean up the extra keys we don't need
     result = tf.get_metadata()
     for key in ["Payload-Oxum", "Bagging-Date", "Bag-Software-Agent"]:
         result.pop(key)
     assert data == result
+
+
+def test_process_valid_bag_is_valid(existing_bag_trigger, id_parser):
+    tf = TriggerFile(existing_bag_trigger, id_parser)
+    assert tf.validate() == True
 
 
 def test_error_file_creation(invalid_trigger_file, id_parser):

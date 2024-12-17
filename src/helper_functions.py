@@ -156,12 +156,14 @@ class TriggerFile:
         transfer_id = str(uuid.uuid4())
         self.metadata.update({UUID_ID: transfer_id})
 
-    def _has_collection_id(self, ids: list) -> bool:
+    def _has_collection_id(self, ids: str | list) -> bool:
         """Uses IdParser to parse or validate collection identifiers."""
         if ids is None or len(ids) == 0:
             # try to parse from folder title
             ids = self.id_parser.get_ids(self.name, normalise=True)
             self.metadata.update({PRIMARY_ID: ids})
+        if type(ids) == str:
+            ids = [ids]
         if ids is not None and len(ids) != 0:
             for id in ids:
                 if self.id_parser.validate_id(id) == True:
@@ -238,14 +240,14 @@ class IdParser:
             logger.info(f"Normalised id {id} to {norm_id}")
         return norm_id
 
-    def get_ids(self, string: str, normalise: bool = False) -> list | None:
+    def get_ids(self, string: str, normalise: bool = True) -> list | None:
         """Finds identifiers in strings based on supplied identifier pattern regex.
         Returns ids as a list which is compatible with Python BagIt.
         If no ids can be parsed, returns None.
 
         Keyword arguments:
         string -- String to be searched for identifiers.
-        normalise -- Option to set identifiers to normalised values before returning. (default False)
+        normalise -- Option to set identifiers to normalised values before returning. (default True)
         """
 
         matches = re.findall(self.pattern_list, string)
