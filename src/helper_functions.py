@@ -308,15 +308,20 @@ class NewTransfer(Transfer):
         return metadata
 
     def _get_dir_owner(self, path: str, regex_pattern: str="STAFF.*", capturing_pattern: str="STAFF\\\\([A-Za-z]+)\s") -> str:
-        "Get the folder owner label as a string."
+        """Get the folder owner label as a string using either Unix owner or Windows dir command.
+        
+        Keyword arguments:
+        path -- folder in question
+        regex_pattern -- pattern that matches username in Windows dir dump
+        capturing_pattern -- riff on regex_pattern, but only getting a single match group within the string"""
 
         root, folder = os.path.split(path)
-        try:
+        try: # to use Unix file properties
             filepath = Path(root)
             return filepath.owner()
         except KeyError as e:
             logger.warning(f"Unable to parse using Path.owner, trying subprocess...")
-            try:
+            try: # to use the windows dir command to grab the data then parse it
                 owner_data = subprocess.run(
                     ["dir", root, "/q"],
                     shell=True,
