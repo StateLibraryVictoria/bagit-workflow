@@ -195,7 +195,12 @@ def insert_transfer(
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
 
-def dump_database_tables_to_html(title: str="Data Archive Report", db_paths: dict={"transfer" :None, "validation" :None}, db_tables: dict={"transfer":[],"validation":[]}) -> str:
+def dump_database_tables_to_html(title: str="Data Archive Report", 
+                                 db_paths: dict={"transfer" :None, "validation" :None}, 
+                                 db_tables: dict={"transfer":[],"validation":[]}) -> str:
+    """Outputs specified transfer and validation databases tables as HTML. 
+    Requires the table names to be specifically entered.
+    """
     html_start = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
