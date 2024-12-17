@@ -86,41 +86,46 @@ def start_validation(begin_time, db_path):
         try:
             cur.execute(
                 "INSERT INTO ValidationActions(CountBagsValidated, CountBagsWithErrors, StartAction, EndAction, Status) VALUES (?, ?, ?, ?, ?)",
+                (0, 0, begin_time, None, "Running"),
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
+            return None
+        try:
+            i = cur.execute(
+                "SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC"
+            )
+            identifier = i.fetchone()[0]
+            return identifier
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationActions table: {e}")
+            return None
+
+
+def end_validation(validation_action_id, end_time, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "UPDATE ValidationActions SET EndAction =?, Status='Complete' WHERE ValidationActionsId =?",
                 (
-                    0,
-                    0, 
-                    begin_time,
-                    None,
-                    "Running"
+                    end_time,
+                    validation_action_id,
                 ),
             )
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting record into ValidationOutcome table: {e}")
             return None
         try:
-            i = cur.execute("SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC")
+            i = cur.execute(
+                "SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC"
+            )
             identifier = i.fetchone()[0]
             return identifier
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting record into ValidationActions table: {e}")
             return None
-        
-def end_validation(validation_action_id, end_time, db_path):
-    with get_db_connection(db_path) as con:
-        cur = con.cursor()
-        try:
-            cur.execute("UPDATE ValidationActions SET EndAction =?, Status='Complete' WHERE ValidationActionsId =?", 
-                            (end_time, validation_action_id,))
-        except sqlite3.DatabaseError as e:
-            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
-            return None
-        try:
-            i = cur.execute("SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC")
-            identifier = i.fetchone()[0]
-            return identifier
-        except sqlite3.DatabaseError as e:
-            logger.error(f"Error inserting record into ValidationActions table: {e}")
-            return None
+
 
 def insert_validation_outcome(
     validation_action_id,
@@ -136,16 +141,24 @@ def insert_validation_outcome(
         cur = con.cursor()
         if outcome:
             try:
-                cur.execute("UPDATE ValidationActions SET CountBagsValidated = CountBagsValidated + 1 WHERE ValidationActionsId =?", 
-                            (validation_action_id,))
+                cur.execute(
+                    "UPDATE ValidationActions SET CountBagsValidated = CountBagsValidated + 1 WHERE ValidationActionsId =?",
+                    (validation_action_id,),
+                )
             except sqlite3.DatabaseError as e:
-                logger.error(f"Error updating record into ValidationActions table for action {validation_action_id}: {e}")
-        else: 
+                logger.error(
+                    f"Error updating record into ValidationActions table for action {validation_action_id}: {e}"
+                )
+        else:
             try:
-                cur.execute("UPDATE ValidationActions SET CountBagsWithErrors = CountBagsWithErrors + 1 WHERE ValidationActionsId =?", 
-                            (validation_action_id,))
+                cur.execute(
+                    "UPDATE ValidationActions SET CountBagsWithErrors = CountBagsWithErrors + 1 WHERE ValidationActionsId =?",
+                    (validation_action_id,),
+                )
             except sqlite3.DatabaseError as e:
-                logger.error(f"Error updating record into ValidationActions table for action {validation_action_id}: {e}")
+                logger.error(
+                    f"Error updating record into ValidationActions table for action {validation_action_id}: {e}"
+                )
         outcome = "Pass" if outcome else "Fail"
         try:
             cur.execute(
@@ -195,6 +208,7 @@ def insert_transfer(
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
 
+
 def html_header(title: str):
     header = f"""<!DOCTYPE html>
 <html lang="en">
@@ -209,10 +223,13 @@ def html_header(title: str):
 </head>"""
     return header
 
-def dump_database_tables_to_html(title: str="Data Archive Report", 
-                                 db_paths: dict={"transfer" :None, "validation" :None}, 
-                                 db_tables: dict={"transfer":[],"validation":[]}) -> str:
-    """Outputs specified transfer and validation databases tables as HTML. 
+
+def dump_database_tables_to_html(
+    title: str = "Data Archive Report",
+    db_paths: dict = {"transfer": None, "validation": None},
+    db_tables: dict = {"transfer": [], "validation": []},
+) -> str:
+    """Outputs specified transfer and validation databases tables as HTML.
     Requires the table names to be specifically entered.
     """
     html_start = html_header(title)
@@ -232,6 +249,7 @@ def dump_database_tables_to_html(title: str="Data Archive Report",
 </html>"""
     html = html_start + html_body + html_end
     return html
+
 
 def return_db_query_as_html(db_path: str, sql_query: str):
     with get_db_connection(db_path) as con:

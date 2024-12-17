@@ -13,6 +13,7 @@ UUID_ID = "Internal-Sender-Identifier"
 CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
 
+
 def load_config():
     config = {
         "TRANSFER_DIR": os.getenv("TRANSFER_DIR"),
@@ -21,7 +22,6 @@ def load_config():
         "DATABASE": os.getenv("DATABASE"),
     }
     return config
-
 
 
 def main():
@@ -127,7 +127,9 @@ def main():
                 # check copied bag is valid and if so update database
                 if output_bag.is_valid():
                     try:
-                        insert_transfer(folder, bag, primary_id, manifest_hash, copy_time, database)
+                        insert_transfer(
+                            folder, bag, primary_id, manifest_hash, copy_time, database
+                        )
                         tf.cleanup_transfer()
                     except Exception as e:
                         logger.error(

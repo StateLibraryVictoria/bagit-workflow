@@ -1,4 +1,3 @@
-
 from src.database_functions import *
 from src.helper_functions import compute_manifest_hash
 import pytest
@@ -24,13 +23,13 @@ def existing_bag(tmp_path):
     yield bag
 
 
-
 @pytest.fixture(scope="function")
 def database_path(tmp_path):
     dir = tmp_path / "database"
     dir.mkdir()
     database = dir / "database.db"
     yield database
+
 
 @pytest.fixture()
 def validation_db(tmp_path):
@@ -39,12 +38,14 @@ def validation_db(tmp_path):
     database = dir / "database.db"
     yield database
 
+
 @pytest.fixture()
 def configured_validation_db_started(validation_db):
     configure_validation_db(validation_db)
     time = "now"
     validation_action_id = start_validation(time, validation_db)
     yield (validation_db, validation_action_id)
+
 
 # test_configure_transfer_db
 def test_configure_transfer_db(database_path):
@@ -74,7 +75,9 @@ def test_configure_transfer_db_twice_is_fine(database_path):
 def test_insert_transfer_valid_data_right_length_transfers(existing_bag, database_path):
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
-    insert_transfer(str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path)
+    insert_transfer(
+        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+    )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
     result = cur.execute("SELECT * FROM Transfers;").fetchall()
@@ -86,7 +89,9 @@ def test_insert_transfer_valid_data_right_columns_transfers(
 ):
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
-    insert_transfer(str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path)
+    insert_transfer(
+        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+    )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
     result = cur.execute("SELECT * FROM Transfers;").fetchall()
@@ -108,7 +113,9 @@ def test_insert_transfer_valid_data_right_length_collections(
 ):
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
-    insert_transfer(str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path)
+    insert_transfer(
+        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+    )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
     result = cur.execute("SELECT * FROM Collections;").fetchall()
@@ -120,7 +127,9 @@ def test_insert_transfer_valid_data_right_columns_collections(
 ):
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
-    insert_transfer(str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path)
+    insert_transfer(
+        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+    )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
     result = cur.execute("SELECT * FROM Collections;").fetchall()
@@ -132,6 +141,7 @@ def test_insert_transfer_valid_data_right_columns_collections(
 
     ## validation
 
+
 def test_validation_db_return_primary_key(validation_db):
     configure_validation_db(validation_db)
     time = "now"
@@ -139,44 +149,99 @@ def test_validation_db_return_primary_key(validation_db):
     validation_action_id_2 = start_validation(time, validation_db)
     assert validation_action_id == 1 and validation_action_id_2 == 2
 
+
 def test_add_validation_outcome_updates_action_pass(validation_db):
     configure_validation_db(validation_db)
     time = "now"
     validation_action_id = start_validation(time, validation_db)
-    insert_validation_outcome(validation_action_id, "1234",True,None,"bag/path","now","later",validation_db)
+    insert_validation_outcome(
+        validation_action_id,
+        "1234",
+        True,
+        None,
+        "bag/path",
+        "now",
+        "later",
+        validation_db,
+    )
     db = sqlite3.connect(validation_db)
     cur = db.cursor()
-    result_pass = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[1]
-    result_fail = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[2]
+    result_pass = cur.execute(
+        "SELECT * FROM ValidationActions WHERE ValidationActionsId=?",
+        (validation_action_id,),
+    ).fetchone()[1]
+    result_fail = cur.execute(
+        "SELECT * FROM ValidationActions WHERE ValidationActionsId=?",
+        (validation_action_id,),
+    ).fetchone()[2]
     assert result_pass == 1 and result_fail == 0
+
 
 def test_add_validation_outcome_updates_action_fail(validation_db):
     configure_validation_db(validation_db)
     time = "now"
     validation_action_id = start_validation(time, validation_db)
-    insert_validation_outcome(validation_action_id, "1234",False,None,"bag/path","now","later",validation_db)
+    insert_validation_outcome(
+        validation_action_id,
+        "1234",
+        False,
+        None,
+        "bag/path",
+        "now",
+        "later",
+        validation_db,
+    )
     db = sqlite3.connect(validation_db)
     cur = db.cursor()
-    result_pass = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[1]
-    result_fail = cur.execute("SELECT * FROM ValidationActions WHERE ValidationActionsId=?", (validation_action_id,)).fetchone()[2]
+    result_pass = cur.execute(
+        "SELECT * FROM ValidationActions WHERE ValidationActionsId=?",
+        (validation_action_id,),
+    ).fetchone()[1]
+    result_fail = cur.execute(
+        "SELECT * FROM ValidationActions WHERE ValidationActionsId=?",
+        (validation_action_id,),
+    ).fetchone()[2]
     assert result_pass == 0 and result_fail == 1
+
 
 def test_add_validation_outcome_updates_outcome(validation_db):
     configure_validation_db(validation_db)
     time = "now"
     validation_action_id = start_validation(time, validation_db)
-    insert_validation_outcome(validation_action_id, "2222",True,None,"bag/path/1","now","later",validation_db)
-    insert_validation_outcome(validation_action_id, "1234",False,"Error validating bag","bag/path","now","later",validation_db)
+    insert_validation_outcome(
+        validation_action_id,
+        "2222",
+        True,
+        None,
+        "bag/path/1",
+        "now",
+        "later",
+        validation_db,
+    )
+    insert_validation_outcome(
+        validation_action_id,
+        "1234",
+        False,
+        "Error validating bag",
+        "bag/path",
+        "now",
+        "later",
+        validation_db,
+    )
     db = sqlite3.connect(validation_db)
     cur = db.cursor()
     # OutcomeIdentifier, ValidationActionsId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
     outcomes = cur.execute("SELECT * FROM ValidationOutcome;").fetchall()
     print(outcomes[0])
-    assert outcomes == [(1, 1, '2222', 'Pass', None, 'bag/path/1', 'now', 'later'),(2, 1, '1234', 'Fail', 'Error validating bag', 'bag/path', 'now', 'later')]
+    assert outcomes == [
+        (1, 1, "2222", "Pass", None, "bag/path/1", "now", "later"),
+        (2, 1, "1234", "Fail", "Error validating bag", "bag/path", "now", "later"),
+    ]
+
 
 def test_end_validation_sets_status_to_complete(configured_validation_db_started):
     validation_action_id = configured_validation_db_started[1]
-    end_validation(validation_action_id,"now",configured_validation_db_started[0])
+    end_validation(validation_action_id, "now", configured_validation_db_started[0])
     db = sqlite3.connect(configured_validation_db_started[0])
     cur = db.cursor()
     # ValidationActionsId INTEGER PRIMARY KEY AUTOINCREMENT, CountBagsValidated INT, CountBagsWithErrors INT, StartAction, EndAction, Status

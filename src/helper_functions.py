@@ -14,10 +14,10 @@ from src.shared_constants import *
 
 class TriggerFile:
     """A class for managing BagIt transfer status using files in a directory.
-    
+
     Each TriggerFile object contains filepath information, a status, metadata,
     and helper objects to support different transfer types.
-    
+
     Keyword argument:
     filename -- path to the trigger file. Must have extension ".ok" to create.
     id_parser -- a configured IdParser object which is used to parse identifiers from filepaths.
@@ -34,7 +34,7 @@ class TriggerFile:
 
     def load_metadata(self) -> dict:
         """Creates a dictionary of metadata tags and values.
-        
+
         If directory contains bag-info.txt, will set the transfer type to BagTransfer,
         otherwise processes as a NewTransfer.
         """
@@ -44,7 +44,9 @@ class TriggerFile:
                 "Existing bag identified. Will use bag metadata. Delete bag-info.txt to run a bag with supplied metadata."
             )
             self.transfer_type.transfer = BagTransfer()
-        metadata = self.transfer_type.build_metadata(path=self.name, id_parser=self.id_parser)
+        metadata = self.transfer_type.build_metadata(
+            path=self.name, id_parser=self.id_parser
+        )
         return metadata
 
     def get_metadata(self) -> dict:
@@ -57,7 +59,7 @@ class TriggerFile:
 
     def set_error(self, error: str) -> None:
         """Set an error that will be written to the original trigger file.
-        
+
         Keyword arguments:
         error -- Text to be written to error file.
         """
@@ -70,7 +72,7 @@ class TriggerFile:
 
     def validate(self) -> bool:
         """Returns True if path exists, the folder has data, and file has minimum metadata.
-        
+
         If any condition fails, the TriggerFile status is updated to .error and errors are written
         to .error file.
         """
@@ -106,7 +108,7 @@ class TriggerFile:
         Keyword arguments:
         new_status -- keyword used as file extension to indicate status.
         """
-        new_status = new_status.replace(" ","")
+        new_status = new_status.replace(" ", "")
         new_name = f"{self.name}{new_status}"
         try:
             os.rename(self.filename, new_name)
@@ -123,7 +125,7 @@ class TriggerFile:
             return False
         else:
             return self._check_ids()
-    
+
     def _check_ids(self) -> bool:
         """Confirms a collection id is present. Adds a UUID if not present."""
         collection_id = self.metadata.get(PRIMARY_ID)
@@ -139,7 +141,7 @@ class TriggerFile:
     def _has_uuid(self, ids: list) -> bool:
         """Checks each identifier and returns True if any can be parsed as a UUID."""
         parsed_uuid = []
-        if ids is not None and ids !=0:
+        if ids is not None and ids != 0:
             for id in ids:
                 try:
                     test_uuid = uuid.UUID(id)
@@ -148,7 +150,7 @@ class TriggerFile:
                 except Exception as e:
                     logger.debug(f"Failed to parse uuid from {id}")
         return len(parsed_uuid) != 0
-    
+
     def _add_uuid(self) -> None:
         """Adds a UUID to the UUID field. Will overwrite any other ids in this field."""
         transfer_id = str(uuid.uuid4())
@@ -159,7 +161,7 @@ class TriggerFile:
         if ids is None or len(ids) == 0:
             # try to parse from folder title
             ids = self.id_parser.get_ids(self.name, normalise=True)
-            self.metadata.update({PRIMARY_ID:ids})
+            self.metadata.update({PRIMARY_ID: ids})
         if ids is not None and len(ids) != 0:
             for id in ids:
                 if self.id_parser.validate_id(id) == True:
@@ -167,9 +169,11 @@ class TriggerFile:
         if ids is None or len(ids) == 0:
             logger.error("No ids present.")
         else:
-            logger.warning(f"No collection id could be parsed from identifiers: {', '.join(ids)}")
+            logger.warning(
+                f"No collection id could be parsed from identifiers: {', '.join(ids)}"
+            )
         return False
-    
+
     def make_bag(self) -> bagit.Bag:
         """Builds a BagIt Bag based on transfer type."""
         self._set_status(".processing")
@@ -203,17 +207,19 @@ class IdParser:
             return False
         return re.fullmatch(self.valid_pattern, id) is not None
 
-    def normalise_id(self, 
-                     id: str, 
-                     default_regex: str="[_\.]|\s",
-                     replace_with: str="-",
-                     tests: list=[r"(MS)(\d+)",r"(SC)\D?(\d+)"], 
-                     join_by: list=["-",""]) -> str:
+    def normalise_id(
+        self,
+        id: str,
+        default_regex: str = "[_\.]|\s",
+        replace_with: str = "-",
+        tests: list = [r"(MS)(\d+)", r"(SC)\D?(\d+)"],
+        join_by: list = ["-", ""],
+    ) -> str:
         """Normalise based on patterns for easy searching.
         Defaults to replacing underscores, periods and whitespace with hyphens.
-        Includes optional list of regex tests with matchgroups and delimiters to 
+        Includes optional list of regex tests with matchgroups and delimiters to
         address specific issues.
-        
+
         Keyword arguments:
         id -- identifier to be normalised
         default_regex -- matching patterns will be replaced (default "[_\.]|\s")
@@ -223,16 +229,16 @@ class IdParser:
         """
         # check if id is a MS number.
         norm_id = norm_id = re.sub(default_regex, replace_with, id)
-        if tests is not None and join_by is not None and ((len(tests)==len(join_by))):
+        if tests is not None and join_by is not None and ((len(tests) == len(join_by))):
             for i in range(len(tests)):
-                results = re.match(tests[i],id)
+                results = re.match(tests[i], id)
                 if results is not None:
                     norm_id = join_by[i].join(results.groups())
         if norm_id != id:
             logger.info(f"Normalised id {id} to {norm_id}")
         return norm_id
 
-    def get_ids(self, string: str, normalise: bool=False) -> (list|None):
+    def get_ids(self, string: str, normalise: bool = False) -> list | None:
         """Finds identifiers in strings based on supplied identifier pattern regex.
         Returns ids as a list which is compatible with Python BagIt.
         If no ids can be parsed, returns None.
@@ -255,6 +261,7 @@ class IdParser:
                     ids.append(id)
         return ids
 
+
 class Transfer(ABC):
     """Transfer interface declares operations common to all transfer types."""
 
@@ -275,7 +282,7 @@ class BagTransfer(Transfer):
         bag = bagit.Bag(path)
         metadata = bag.info
         return metadata
-    
+
     def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
         """Loads a bag and replaces any metadata keys with values supplied in a dict."""
         bag = bagit.Bag(path)
@@ -301,27 +308,33 @@ class NewTransfer(Transfer):
         owner = self._get_dir_owner(path)
         identifier = id_parser.get_ids(path)
         metadata = {
-                PRIMARY_ID: identifier,
-                CONTACT: owner,
-                EXTERNAL_DESCRIPTION: filename,
-            }
+            PRIMARY_ID: identifier,
+            CONTACT: owner,
+            EXTERNAL_DESCRIPTION: filename,
+        }
         return metadata
 
-    def _get_dir_owner(self, path: str, regex_pattern: str="STAFF.*", capturing_pattern: str="STAFF\\\\([A-Za-z]+)\s") -> str:
+    def _get_dir_owner(
+        self,
+        path: str,
+        regex_pattern: str = "STAFF.*",
+        capturing_pattern: str = "STAFF\\\\([A-Za-z]+)\s",
+    ) -> str:
         """Get the folder owner label as a string using either Unix owner or Windows dir command.
-        
+
         Keyword arguments:
         path -- folder in question
         regex_pattern -- pattern that matches username in Windows dir dump
-        capturing_pattern -- riff on regex_pattern, but only getting a single match group within the string"""
+        capturing_pattern -- riff on regex_pattern, but only getting a single match group within the string
+        """
 
         root, folder = os.path.split(path)
-        try: # to use Unix file properties
+        try:  # to use Unix file properties
             filepath = Path(root)
             return filepath.owner()
         except KeyError as e:
             logger.warning(f"Unable to parse using Path.owner, trying subprocess...")
-            try: # to use the windows dir command to grab the data then parse it
+            try:  # to use the windows dir command to grab the data then parse it
                 owner_data = subprocess.run(
                     ["dir", root, "/q"],
                     shell=True,
@@ -364,13 +377,15 @@ class TransferType:
     def build_metadata(self, path: str, id_parser: IdParser) -> dict:
         metadata = self._transfer.build_metadata(path, id_parser)
         return metadata
-    
+
     def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
         bag = self._transfer.make_bag(path, metadata)
         return bag
-    
 
-def guess_primary_id(identifiers: list, identifier_prefixes: list=["RA","PA","SC","POL","H","MS"]) -> str:
+
+def guess_primary_id(
+    identifiers: list, identifier_prefixes: list = ["RA", "PA", "SC", "POL", "H", "MS"]
+) -> str:
     """Supply a list of identifiers and an ordered list of prefixes and the algorithm will return the first one that matches.
     Use a better algorithm if you can.
     """
@@ -391,8 +406,7 @@ def guess_primary_id(identifiers: list, identifier_prefixes: list=["RA","PA","SC
     return None
 
 
-
-def timed_rsync_copy(folder: str, output_dir: str, flags: str="-vrlt") -> float:
+def timed_rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> float:
     """Copies data from folder to output_dir using rsync subprocess with -vrlt flags.
     Returns the time processing takes as a float using time.perf_counter().
     Default rsync flags evaluate to verbose, recursive, links, preserve modification times.
@@ -400,7 +414,7 @@ def timed_rsync_copy(folder: str, output_dir: str, flags: str="-vrlt") -> float:
     Keyword arguments:
     folder -- path to data for copying
     output_dir -- location to copy to
-    flags -- passed to rsync subprocess, (default -vrlt) 
+    flags -- passed to rsync subprocess, (default -vrlt)
     """
     start = time.perf_counter()
     # may need to add bandwidth limit --bwlimit=1000
@@ -429,8 +443,13 @@ def compute_manifest_hash(folder: str, target_manifest="manifest-sha256.txt") ->
 
     return hash_sha256.hexdigest()
 
+
 # bagit_transfer functions
 
-def load_id_parser(identifier_pattern: str=IDENTIFIER_REGEX, validation_pattern: str=VALIDATION_REGEX) -> IdParser:
+
+def load_id_parser(
+    identifier_pattern: str = IDENTIFIER_REGEX,
+    validation_pattern: str = VALIDATION_REGEX,
+) -> IdParser:
     """Returns configured IdParser based on regex in shared_constants.py"""
     return IdParser(validation_pattern, identifier_pattern)

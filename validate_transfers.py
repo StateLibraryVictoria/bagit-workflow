@@ -13,6 +13,7 @@ UUID_ID = "Internal-Sender-Identifier"
 CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
 
+
 def load_config():
     config = {
         "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
@@ -50,21 +51,20 @@ def main():
 
     # create the ValidationAction entry here. Get the Primary key to pass to the next function
     validation_action_begin = datetime.now()
-    validation_action_id = start_validation(validation_action_begin,validation_db)
-    
+    validation_action_id = start_validation(validation_action_begin, validation_db)
 
     for collection in collections:
         col_dir = os.path.join(archive_dir, collection)
         if os.path.isfile(col_dir):
             continue
-        
+
         transfers = os.listdir(col_dir)
         for transfer in transfers:
             transfer_dir = os.path.join(col_dir, transfer)
             if not os.path.isdir(transfer_dir):
                 continue
             validation_start_time = datetime.now()
-            bag_path = os.path.join(archive_dir,collection,transfer_dir)
+            bag_path = os.path.join(archive_dir, collection, transfer_dir)
             try:
                 bag = bagit.Bag(bag_path)
             except Exception as e:
@@ -81,27 +81,48 @@ def main():
                 logger.info(f"Validated bag at: {bag_path}")
                 errors = None
             except bagit.BagValidationError as e:
-                logger.warning(f"Error validating bag at {bag_path} with UUID {baguuid}: {e}")
+                logger.warning(
+                    f"Error validating bag at {bag_path} with UUID {baguuid}: {e}"
+                )
                 errors = f"{e}"
             uuid_error = "Bag UUID not present in bag-info.txt"
-            errors = errors if baguuid is not None else (uuid_error if errors is None else errors +";"+ uuid_error)
+            errors = (
+                errors
+                if baguuid is not None
+                else (uuid_error if errors is None else errors + ";" + uuid_error)
+            )
             validation_end_time = datetime.now()
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
-            insert_validation_outcome(validation_action_id, baguuid, errors==None, errors, bag_path, validation_start_time, validation_end_time, validation_db)
-    
+            insert_validation_outcome(
+                validation_action_id,
+                baguuid,
+                errors == None,
+                errors,
+                bag_path,
+                validation_start_time,
+                validation_end_time,
+                validation_db,
+            )
+
     validation_action_end = datetime.now()
     end_validation(validation_action_id, validation_action_end, validation_db)
 
     # build a basic report and output to html.
-    report_date = time.strftime('%Y%m%d')
+    report_date = time.strftime("%Y%m%d")
     html_start = html_header("Validation Report")
-    html_action = return_db_query_as_html(validation_db, f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}")
-    html_outcome = return_db_query_as_html(validation_db, f"SELECT * from ValidationOutcome WHERE ValidationActionsId={validation_action_id}")
+    html_action = return_db_query_as_html(
+        validation_db,
+        f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}",
+    )
+    html_outcome = return_db_query_as_html(
+        validation_db,
+        f"SELECT * from ValidationOutcome WHERE ValidationActionsId={validation_action_id}",
+    )
 
-    report_file=os.path.join(report_dir,f"validation_report_{report_date}.html")
+    report_file = os.path.join(report_dir, f"validation_report_{report_date}.html")
     try:
-        with open(report_file, 'a') as f:
+        with open(report_file, "a") as f:
             f.write(html_start)
             f.write("<body>")
             f.write("<h2>Report Overview</h2>")

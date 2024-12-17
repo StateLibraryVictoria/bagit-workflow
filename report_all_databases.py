@@ -9,6 +9,7 @@ UUID_ID = "Internal-Sender-Identifier"
 CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
 
+
 def load_config():
     config = {
         "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
@@ -18,6 +19,7 @@ def load_config():
         "REPORT_DIR": os.getenv("REPORT_DIR"),
     }
     return config
+
 
 def main():
     # load variables
@@ -35,13 +37,16 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    transfer_tables = ["Collections","Transfers"]
-    validation_tables = ["ValidationActions","ValidationOutcome"]
-    html = dump_database_tables_to_html({"transfer":transfer_db,"validation":validation_db},{"transfer":transfer_tables,"validation":validation_tables})
+    transfer_tables = ["Collections", "Transfers"]
+    validation_tables = ["ValidationActions", "ValidationOutcome"]
+    html = dump_database_tables_to_html(
+        {"transfer": transfer_db, "validation": validation_db},
+        {"transfer": transfer_tables, "validation": validation_tables},
+    )
 
-    report_file=os.path.join(report_dir,"full_data_dump.html")
+    report_file = os.path.join(report_dir, "full_data_dump.html")
     try:
-        with open(report_file, 'a') as f:
+        with open(report_file, "a") as f:
             f.write(html)
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
