@@ -371,12 +371,16 @@ def guess_primary_id(identifiers: list, identifier_prefixes: list=["RA","PA","SC
     """
     if identifiers == None:
         return None
+    # if there is only one, return it
     if type(identifiers) == str:
         return identifiers
+    # sort the identifiers for quicker processing
     identifiers.sort()
-    prefixes = identifier_prefixes
-    for prefix in prefixes:
+    # iterate through until one matches
+    for prefix in identifier_prefixes:
+        # creates a list containing only identifiers that start with the prefix.
         result = list(filter(lambda x: x.startswith(prefix), identifiers))
+        # returns the first result
         if len(result) > 0:
             return result[0]
     return None
