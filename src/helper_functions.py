@@ -197,10 +197,10 @@ class IdParser:
         self.valid_pattern = valid_pattern
         self.pattern_list = pattern_list
 
-    def validate_id(self, id):
-        """Returns true if submitted data matches valid ID pattern"""
+    def validate_id(self, id: str) -> bool:
+        """Returns True if submitted data matches valid ID pattern"""
         if id is None:
-            return None
+            return False
         return re.fullmatch(self.valid_pattern, id) is not None
 
     def normalise_id(self, 
@@ -208,7 +208,7 @@ class IdParser:
                      default_regex: str="[_\.]|\s",
                      replace_with: str="-",
                      tests: list=[r"(MS)(\d+)",r"(SC)\D?(\d+)"], 
-                     join_by: list=["-",""]):
+                     join_by: list=["-",""]) -> str:
         """Normalise based on patterns for easy searching.
         Defaults to replacing underscores, periods and whitespace with hyphens.
         Includes optional list of regex tests with matchgroups and delimeters to 
@@ -232,9 +232,14 @@ class IdParser:
             logger.info(f"Normalised id {id} to {norm_id}")
         return norm_id
 
-    def get_ids(self, string, normalise=False):
+    def get_ids(self, string: str, normalise: bool=False) -> (list|None):
         """Finds identifiers in strings based on supplied identifier pattern regex.
-        Returns ids as a list which is compatible with Python BagIt. Optional to normalise with
+        Returns ids as a list which is compatible with Python BagIt.
+        If no ids can be parsed, returns None.
+
+        Keyword arguments:
+        string -- String to be searched for identifiers.
+        normalise -- Option to set identifiers to normalised values before returning. (default False)
         """
 
         matches = re.findall(self.pattern_list, string)
