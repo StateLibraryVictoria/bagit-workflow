@@ -138,10 +138,12 @@ class TriggerFile:
             logger.warning("Adding uuid to item.")
         return has_collection_id
 
-    def _has_uuid(self, ids: list) -> bool:
+    def _has_uuid(self, ids: list | str) -> bool:
         """Checks each identifier and returns True if any can be parsed as a UUID."""
         parsed_uuid = []
-        if ids is not None and ids != 0:
+        if ids is not None and len(ids) != 0:
+            if type(ids) == str:
+                ids = [ids]
             for id in ids:
                 try:
                     test_uuid = uuid.UUID(id)

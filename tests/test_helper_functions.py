@@ -50,6 +50,7 @@ def existing_bag_trigger(tmp_path):
             "Contact-Name": "sbourke",
             "External-Description": "A test metadata package for a valid transfer.",
             "External-Identifier": "RA-9999-12",
+            UUID_ID: "6c7e785f-5aa9-486b-9772-35ef009fbc38",
         },
     )
     yield file
@@ -128,6 +129,7 @@ def test_validation_succeeds(valid_trigger_file, id_parser):
 
 def test_get_metadata_from_bag(existing_bag_trigger, valid_metadata_no_uuid, id_parser):
     data = valid_metadata_no_uuid
+    data.update({UUID_ID: "6c7e785f-5aa9-486b-9772-35ef009fbc38"})
     tf = TriggerFile(existing_bag_trigger, id_parser)
     # clean up the extra keys we don't need
     result = tf.get_metadata()
@@ -139,6 +141,18 @@ def test_get_metadata_from_bag(existing_bag_trigger, valid_metadata_no_uuid, id_
 def test_process_valid_bag_is_valid(existing_bag_trigger, id_parser):
     tf = TriggerFile(existing_bag_trigger, id_parser)
     assert tf.validate() == True
+
+
+def test_bag_with_uuid_is_not_updated_during_validation(
+    existing_bag_trigger, id_parser
+):
+    expected = "6c7e785f-5aa9-486b-9772-35ef009fbc38"
+    tf = TriggerFile(existing_bag_trigger, id_parser)
+    tf.validate()
+    md = tf.get_metadata()
+    print(md)
+    uuid = md.get(UUID_ID)
+    assert uuid == expected
 
 
 def test_error_file_creation(invalid_trigger_file, id_parser):
