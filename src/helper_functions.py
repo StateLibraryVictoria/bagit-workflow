@@ -332,8 +332,10 @@ class TransferType:
         return bag
     
 
-def guess_primary_id(identifiers: list) -> str:
-    identifier_prefixes = ["RA","PA","SC","POL","H","MS"]
+def guess_primary_id(identifiers: list, identifier_prefixes: list=["RA","PA","SC","POL","H","MS"]) -> str:
+    """Supply a list of identifiers and an ordered list of prefixes and the algorithm will return the first one that matches.
+    Use a better algorithm if you can.
+    """
     if identifiers == None:
         return None
     if type(identifiers) == str:
@@ -348,21 +350,21 @@ def guess_primary_id(identifiers: list) -> str:
 
 
 
-def timed_rsync_copy(folder, output_dir) -> float:
+def timed_rsync_copy(folder: str, output_dir: str, flags: str="-vrlt") -> float:
     """Copies data from folder to output_dir using rsync subprocess with -vrlt flags.
     Returns the time processing takes as a float using time.perf_counter().
+    Default rsync flags evaluate to verbose, recursive, links, preserve modification times.
 
     Keyword arguments:
     folder -- path to data for copying
     output_dir -- location to copy to
+    flags -- passed to rsync subprocess, (default -vrlt) 
     """
-    process = "rsync"
-    flags = "-vrlt" # verbose, recursive, links, times (preserve modification times), 
     start = time.perf_counter()
     # may need to add bandwith limit --bwlimit=1000
     try:
         result = subprocess.run(
-            [process, flags, "--checksum", f"{folder}/", output_dir], check=True
+            ["rsync", flags, "--checksum", f"{folder}/", output_dir], check=True
         )
         logger.info(result.stdout)
         if result.stderr:
@@ -374,8 +376,8 @@ def timed_rsync_copy(folder, output_dir) -> float:
     return time.perf_counter() - start
 
 
-def compute_manifest_hash(folder):
-    target_manifest = "manifest-sha256.txt"
+def compute_manifest_hash(folder: str, target_manifest="manifest-sha256.txt") -> str:
+    """Creates a single hash using sha256 of a target manifest for comparing bag content similarity."""
     hash_sha256 = hashlib.sha256()
     file_path = os.path.join(folder, target_manifest)
 
@@ -387,8 +389,6 @@ def compute_manifest_hash(folder):
 
 # bagit_transfer functions
 
-def load_id_parser():
+def load_id_parser(identifier_pattern: str=IDENTIFIER_REGEX, validation_pattern: str=VALIDATION_REGEX) -> IdParser:
     """Returns configured IdParser based on regex in shared_constants.py"""
-    identifier_pattern = IDENTIFIER_REGEX
-    validation_pattern = VALIDATION_REGEX
     return IdParser(validation_pattern, identifier_pattern)
