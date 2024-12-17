@@ -195,13 +195,8 @@ def insert_transfer(
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
 
-def dump_database_tables_to_html(title: str="Data Archive Report", 
-                                 db_paths: dict={"transfer" :None, "validation" :None}, 
-                                 db_tables: dict={"transfer":[],"validation":[]}) -> str:
-    """Outputs specified transfer and validation databases tables as HTML. 
-    Requires the table names to be specifically entered.
-    """
-    html_start = f"""<!DOCTYPE html>
+def html_header(title: str):
+    header = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -211,9 +206,17 @@ def dump_database_tables_to_html(title: str="Data Archive Report",
 	  font-family: "Andale Mono", monospace;
 	}}
 	</style>
-</head>
-<body>"""
-    html_body = ""
+</head>"""
+    return header
+
+def dump_database_tables_to_html(title: str="Data Archive Report", 
+                                 db_paths: dict={"transfer" :None, "validation" :None}, 
+                                 db_tables: dict={"transfer":[],"validation":[]}) -> str:
+    """Outputs specified transfer and validation databases tables as HTML. 
+    Requires the table names to be specifically entered.
+    """
+    html_start = html_header(title)
+    html_body = "<body>"
     for database in ["transfer", "validation"]:
         if db_paths.get(database) is not None:
             tables = db_tables.get(database)
@@ -230,3 +233,7 @@ def dump_database_tables_to_html(title: str="Data Archive Report",
     html = html_start + html_body + html_end
     return html
 
+def return_db_query_as_html(db_path: str, sql_query: str):
+    with get_db_connection(db_path) as con:
+        df = pd.read_sql_query(sql_query, con)
+    return df.to_html()
