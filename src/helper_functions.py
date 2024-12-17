@@ -27,8 +27,9 @@ class TriggerFile:
     and helper objects to support different transfer types.
     
     Keyword argument:
-    filename -- path to the trigger file
-    id_parser -- a configured IdParser object which is used to parse identifiers from filepaths."""
+    filename -- path to the trigger file. Must have extension ".ok" to create.
+    id_parser -- a configured IdParser object which is used to parse identifiers from filepaths.
+    """
 
     def __init__(self, filename, id_parser):
         self.filename = filename
