@@ -1,7 +1,6 @@
 import bagit
 from datetime import datetime, timezone
 import os
-import pandas as pd
 import sqlite3
 from src.helper_functions import *
 from src.database_functions import *
@@ -95,47 +94,15 @@ def main():
     end_validation(validation_action_id, validation_action_end, validation_db)
 
     # build a basic report and output to html.
-    with get_db_connection(validation_db) as con:
-        try:
-            df = pd.read_sql_query(f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}", con)
-        except Exception as e:
-            logger.error(f"Error reading ValidationActions from database: {e}")
-        try:
-            df2 = pd.read_sql_query(f"SELECT * from ValidationOutcome WHERE ValidationActionsId={validation_action_id}",con)
-        except Exception as e:
-            logger.error(f"Error reading ValidationOutcome database: {e}")
+    report_date = time.strftime('%Y%m%d')
+    html = dump_database_tables_to_html(title=f"Validation Report {report_date}",
+                                        db_paths={"validation":validation_db},
+                                        db_tables={"validation":["ValidationActions","ValidationOutcome"]})
 
-    html_start = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Validation Report</title>
-    <style>
-	body {
-	  font-family: "Andale Mono", monospace;
-	}
-	</style>
-</head>
-<body>"""
-
-    html_top=f"<h1>Validation Report: {validation_action_begin}</h1>"
-    html_logfile=f"<p>More information available in {logfilename}</p>"
-    html_overview = "<h2>Report Overview</h2>"
-    html_detail = "<h2>Validation Outcomes</h2>"
-    html_end = """</body>
-</html>"""
-
-    report_file=os.path.join(report_dir,"validation_report.html")
+    report_file=os.path.join(report_dir,f"validation_report_{report_date}.html")
     try:
         with open(report_file, 'a') as f:
-            f.write(html_start)
-            f.write(html_top)
-            f.write(html_logfile)
-            f.write(html_overview)
-            f.write(df.to_html())
-            f.write(html_detail)
-            f.write(df2.to_html())
-            f.write(html_end)
+            f.write(html)
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
