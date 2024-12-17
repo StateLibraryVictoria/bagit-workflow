@@ -189,7 +189,7 @@ def insert_transfer(
         try:
             cur.execute(
                 "INSERT INTO collections(CollectionIdentifier) VALUES(:id) ON CONFLICT (CollectionIdentifier) DO UPDATE SET count = count + 1",
-                {"id": folder},
+                {"id": collection_id},
             )
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting collections record: {e}")
