@@ -36,12 +36,14 @@ def main():
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+    logger.info(validation_db)
+    logger.info(transfer_db)
 
     transfer_tables = ["Collections", "Transfers"]
     validation_tables = ["ValidationActions", "ValidationOutcome"]
     html = dump_database_tables_to_html(
-        {"transfer": transfer_db, "validation": validation_db},
-        {"transfer": transfer_tables, "validation": validation_tables},
+        db_paths={"transfer": transfer_db, "validation": validation_db},
+        db_tables={"transfer": transfer_tables, "validation": validation_tables},
     )
 
     report_file = os.path.join(report_dir, "full_data_dump.html")
