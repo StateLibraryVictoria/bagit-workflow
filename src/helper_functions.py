@@ -21,6 +21,15 @@ CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
 
 class TriggerFile:
+    """A class for managing BagIt transfer status using files in a direcotry.
+    
+    Each TriggerFile object contains filepath information, a status, metadata,
+    and helper objects to support different transfer types.
+    
+    Keyword argument:
+    filename -- path to the trigger file
+    id_parser -- a configured IdParser object which is used to parse identifiers from filepaths."""
+
     def __init__(self, filename, id_parser):
         self.filename = filename
         self.id_parser = id_parser
