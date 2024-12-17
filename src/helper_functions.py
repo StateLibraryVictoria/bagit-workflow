@@ -278,6 +278,8 @@ class NewTransfer(Transfer):
         return metadata
 
     def _get_dir_owner(self, path):
+        regex_pattern = r"STAFF.*"
+        capturing_pattern = "STAFF\\\\([A-Za-z]+)\s"
         root, folder = os.path.split(path)
         try:
             filepath = Path(root)
@@ -296,10 +298,10 @@ class NewTransfer(Transfer):
                     f"Command failed: dir /q failed for directory: {folder} with exception {e}"
                 )
                 return None
-            regex = f"STAFF.*{folder}"
+            regex = f"{regex_pattern}{folder}"
             row = re.findall(regex, owner_data.stdout)
             try:
-                owner = re.findall(f"STAFF\\\\([A-Za-z]+)\s", row[0])
+                owner = re.findall(f"{capturing_pattern}", row[0])
                 owner = owner[0]
             except IndexError:
                 logger.error(
@@ -331,12 +333,13 @@ class TransferType:
     
 
 def guess_primary_id(identifiers: list) -> str:
+    identifier_prefixes = ["RA","PA","SC","POL","H","MS"]
     if identifiers == None:
         return None
     if type(identifiers) == str:
         return identifiers
     identifiers.sort()
-    prefixes = ["RA","PA","SC","POL","H","MS"]
+    prefixes = identifier_prefixes
     for prefix in prefixes:
         result = list(filter(lambda x: x.startswith(prefix), identifiers))
         if len(result) > 0:
@@ -363,8 +366,9 @@ def timed_rsync_copy(folder, output_dir):
 
 
 def compute_manifest_hash(folder):
+    target_manifest = "manifest-sha256.txt"
     hash_sha256 = hashlib.sha256()
-    file_path = os.path.join(folder, "manifest-sha256.txt")
+    file_path = os.path.join(folder, target_manifest) #fix hardcoded
 
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):  # Read in 4 KB chunks
