@@ -368,7 +368,7 @@ def timed_rsync_copy(folder, output_dir):
 def compute_manifest_hash(folder):
     target_manifest = "manifest-sha256.txt"
     hash_sha256 = hashlib.sha256()
-    file_path = os.path.join(folder, target_manifest) #fix hardcoded
+    file_path = os.path.join(folder, target_manifest)
 
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):  # Read in 4 KB chunks
