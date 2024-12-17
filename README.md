@@ -21,6 +21,12 @@ This is a basic workflow for archiving data as BagIt bags. The process is intend
 
 Limitations: This process is designed to support processing of data compatible with a Windows filesystem. It cannot handle files with multiple filestreams. 
 
+#### Runner scripts
+
+- `bagit_transfer.py` : Bags data and transfers it to a location. Transfers and collections are recorded in a sqlite3 database.    
+- `validate_transfers.py` : Runs validation over every bag in a directory. Each run and each check are recorded in a sqlite3 database. A html report is exported at the end.
+- `report_all_databases.py` : Dumps the contents of the databases to html. This is mostly for debugging and won't scale if the databases get too big. 
+
 ### Transfer workflow
 
 ![Transfer Activity Diagram](docs/Bagit-Workflow-Activity-Diagram.jpg)
