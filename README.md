@@ -42,8 +42,9 @@ Example `.bat` script with metadata:
         @echo off
         for /D %%i in (*) do if not exist %%i.ok (
             if not exist %%i.error (
-                set var=%%i
-                call :metadata %var% >%%i.ready))
+                if not exist %%i.processing (
+                    set var=%%i
+                    call :metadata %var% >%%i.ready)))
 
         :metadata
         echo {"Source-Organization":"",
@@ -54,9 +55,10 @@ Example `.bat` script with metadata:
 Example `.bat` script for empty file:
 
         @echo off
-        for /D %%i in (*) do if not exist %%i.ok (
+            for /D %%i in (*) do if not exist %%i.ok (
                 if not exist %%i.error (
-                .> %%i.ok))
+                    if not exist %%i.processing (
+                        .> %%i.ok)))
 
 #### Trigger file handling
 
