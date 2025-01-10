@@ -16,6 +16,7 @@ This is a basic workflow for archiving data as BagIt bags. The process is intend
         - Script running on a Linux server.  
         - Transfer directory in a Windows environment.  
 
+Filepaths for all environment variables should be set in a `.env` file. See `env.example` for the required filepaths.
 
 ### Process overview
 
@@ -24,8 +25,9 @@ Limitations: This process is designed to support processing of data compatible w
 #### Runner scripts
 
 - `bagit_transfer.py` : Bags data and transfers it to a location. Transfers and collections are recorded in a sqlite3 database.    
-- `validate_transfers.py` : Runs validation over every bag in a directory. Each run and each check are recorded in a sqlite3 database. A html report is exported at the end.    
-- `report_all_databases.py` : Dumps the contents of the databases to html. This is mostly for debugging and won't scale if the databases get too big. 
+- `validate_transfers.py` : Runs validation over every bag in a directory. Each run and each check are recorded in a sqlite3 database. A HTML report is exported at the end.    
+- `transfer_report.py` : Generates a HTML report of all transfers in the database.
+- `report_all_databases.py` : Dumps the contents of the databases to HTML. This is mostly for debugging and won't scale if the databases get too big. 
 
 ### Transfer workflow
 
@@ -33,9 +35,18 @@ Limitations: This process is designed to support processing of data compatible w
 
 #### Staging script
 
-This process is designed to use minimal metadata submitted as JSON or parse metadata from the folder title. The current configuration looks for a `folder_title.ok` file that contains minimum metadata or is a zero byte file. 
+This process is designed to use minimal metadata extracted from the folder metadata or within an existing bag. The current configuration looks for a `folder_title.ok` file to determine which collections to process.
 
-To generate these files, a Windows Batch file can be created to generate a `folder_title.ready` file with minimum metadata fields. Once the metadata is updated, the user renames the file to `.ok`.
+To generate these files, a Windows Batch file can be created to generate a `folder_title.ok` file. 
+An optional future enhancement would involve generating a `folder_title.ready` file with minimum metadata fields to allow for more nuanced metadata entry. Once the metadata is updated, the user renames the file to `.ok`.
+
+Example `.bat` script for empty file:
+
+        @echo off
+            for /D %%i in (*) do if not exist %%i.ok (
+                if not exist %%i.error (
+                    if not exist %%i.processing (
+                        .> %%i.ok)))
 
 Example `.bat` script with metadata:
 
@@ -52,25 +63,18 @@ Example `.bat` script with metadata:
         echo "External-Description":"%var%",
         echo "External-Identifier": ""}
 
-Example `.bat` script for empty file:
-
-        @echo off
-            for /D %%i in (*) do if not exist %%i.ok (
-                if not exist %%i.error (
-                    if not exist %%i.processing (
-                        .> %%i.ok)))
-
 #### Trigger file handling
 
-Required metadata fields are configured in the `.env` file. See `env.example` for example fields. Additional fields can be included, but expects at least these.
+Staged transfers are handled based on the file extension, whether they have already been bagged, and whether they meet minimum validation requirements.
 
 The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
 - Does the folder exist?
 - Can metadata be parsed?
-- Does it have the right keys?
 - Are all the values set?
 
 Any failing conditions are tracked and the errors written to a `.error` file along with a default metadata form.
+
+A future enhancement could implement minimum metadata fields configured in the `.env` file. This would allow for additional fields to be configured, but ensure that the minimum must be included before processing. 
 
 When a bag is being processed, the trigger file is set to `.processing` to avoid re-triggering an in-process transfer.
 
@@ -78,7 +82,7 @@ It relies on the following classes for added functionality:
 - `IdParser` - extracts identifiers from folder titles.
 - `Transfer` - handlers for extracting metadata and making bags between bagged or unbagged transfers.
 
-See the class diagram below for a more comprehensive outline: 
+See the class diagram below for a more comprehensive outline of these classes: 
 
 ![Class Diagram](docs/Bagit-Workflow-Class-Diagram.jpg)
 
@@ -87,23 +91,23 @@ See the class diagram below for a more comprehensive outline:
 
 The following tags are hard-coded into `src/helper_functions.py`:
 
-                PRIMARY_ID = "External-Identifier"
-                UUID_ID = "Internal-Sender-Identifier"
-                CONTACT = "Contact-Name"
-                EXTERNAL_DESCRIPTION = "External-Description"
+                PRIMARY_ID = "External-Identifier" # used to store identifier that matches the Accession Record for the material
+                UUID_ID = "Internal-Sender-Identifier" # used to store a bag-specific unique identifier
+                CONTACT = "Contact-Name" # used to store the name of the staff member creating the bag
+                EXTERNAL_DESCRIPTION = "External-Description" # used to store the original folder title
 
 
 #### Copying to output directory
 
-Copying is handled in the runner script (`bagit_transfer.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`.
+Copying is handled in the runner script (`bagit_transfer.py`) using [rsync](https://linux.die.net/man/1/rsync) with the following flags `-vrlt`. (This sets rsync to operate in verbose mode, recursively copy data within directories, copy symbolic links, and preserve modification times.)
 
-A sqlite3 database is used to store a record of collections (folders) and transactions (transfers). To check for duplicate data transfers, the hash of the SHA256 manifest is added to the transactions and checked before moving data. 
+A sqlite3 database is used to store a record of collections (folders with the same accession identifier) and transactions (transfers). To check for duplicate data transfers, the hash of the SHA256 manifest is added to the transactions and checked before moving data. 
 
 In the output location, files are stored in the transfer folder they were submitted from, within a subfolder t1 that increments as transfers are added.
 
 ### Validation process
 
-Validation is handled by running bagit over files in the archive directory and writing the results to a Sqlite3 database. This database is separate from the transfers database, though theoretically they could be the same. 
+Validation is handled by running BagIt over files in the archive directory and writing the results to a Sqlite3 database. This database may have a seperate filepath to the transfers directory, or may create the tables in the same file, depending on configuration. 
 
 The script operates in the following way:
 - Generates a list of all collections in the supplied directory.  
@@ -112,22 +116,24 @@ The script operates in the following way:
 - Records information in the database.
 - Once all directories have been checked, sets the status of the ValidationAction to 'Completed'.
 
+This process should be enhanced to run from data stored in the transfers table, to avoid missing validation actions for transfers that have been moved, renamed or deleted.
+
 ![Validation activity diagram](/docs/Bagit-Workflow-Validation-Action-Activity.jpg)
 
 ### Sqlite3 databases
 
 Transfers are tracked using a `sqlite3` database with the following tables:
 
-- `Collections` for counting number of transfers and incrementing the counter.  
+- `Collections` for counting number of transfers related to each accession record and incrementing the counter.  
         - Primary key: `CollectionIdentifier` (stores collection preliminary identifier)  
 - `Transfers` containing key metadata about each transfer, including:  
-        - Primary key: `TransferID` (Incremented count of transfers)  
+        - Primary key: `TransferID` (INT, Incremented count of transfers)  
         - `CollectionIdentifier` - matches the primary key in `Collections`.  
-        - `BagUUID` - a UUID for the transfer that will be added into the bag info.  
+        - `BagUUID` - a UUID for the transfer that will be added into the bag info. In future this could be used to record modification or disposal events for individual bags.
         - `TransferDate` - date transfer occurred.  
         - `PayloadOxum` - BagIt specific metadata containing `octet_count.file_count`.  
         - `ManifestSHA256Hash` - checksum generated from the bag's tag manifest. Used to dedupe identical transfers with different parent folders.  
-        - `TransferTimeSeconds` - used to track how long transfers take to copy from transfer directory to archive directory.  
+        - `TransferTimeSeconds` - used to track how long rsync takes to copy bags from the transfer directory to archive directory.  
 
 **Entity Relationship Diagram**
 
@@ -136,15 +142,15 @@ Transfers are tracked using a `sqlite3` database with the following tables:
 
 Integrity checks are tracked using a separate database with the following tables:
 - `ValidationActions` contains a record for every time the script is run, with a count of successful and unsuccessful validation checks.
-        - Primary key: `ValidationActionId` (INT PRIMARY KEY)  
-        - `CountBagsValidated` INT  
-        - `CountBagsWithErrors` INT  
-        - `TimeStart`  
-        - `TimeStop`  
-        - `Status` Completed if entire script completed without errors, Processing if in progress.  
-- `ValidationOutcome` contains a record for every bag checked, correlated to the ValidationAction
-        - `OutcomeIdentifier` INTEGER PRIMARY KEY.  
-        - `ValidationActionId` Correlation id to the ValidationActions table.   
+        - Primary key: `ValidationActionId` (INT, incremented count of validation actions)    
+        - `CountBagsValidated` INT - increments for each successfully validated bag.  
+        - `CountBagsWithErrors` INT  - increments for each bag which failed validation.  
+        - `TimeStart` - time validation action was started.  
+        - `TimeStop`  - time validation action completed.  
+        - `Status` - Completed if entire script completed without errors, Processing if in progress.    
+- `ValidationOutcome` contains a record for every bag checked, correlated to the ValidationAction  
+        - Primary key: `OutcomeIdentifier` (INT, incremented count of validation outcomes)    
+        - `ValidationActionId` - correlation id to the ValidationActions table.   
         - `BagUUID`- UUID from the Bag metadata for the bag checked.   
         - `Outcome`- Pass or Fail.    
         - `Errors`- Error message for the failing exception.   
