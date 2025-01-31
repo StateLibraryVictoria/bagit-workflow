@@ -301,7 +301,7 @@ class NewTransfer(Transfer):
 
     def make_bag(self, path: str, metadata: dict) -> bagit.Bag:
         """Run BagIt on a folder with supplied metadata dictionary."""
-        bag = bagit.make_bag(path, bag_info=metadata)
+        bag = bagit.make_bag(path, bag_info=metadata, checksums=get_hash_config())
         return bag
 
     def build_metadata(self, path: str, id_parser: IdParser) -> dict:
