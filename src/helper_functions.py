@@ -477,7 +477,7 @@ def get_hash_config() -> str:
 
 def get_hash_algorithms(string_input) -> str:
     if string_input == None:
-        hash_algorithms = ["md5", "sha256"]
+        hash_algorithms = ["none"]
     elif "," in string_input:
         hash_algorithms = string_input.split(",")
     else:
@@ -486,6 +486,13 @@ def get_hash_algorithms(string_input) -> str:
     for hash in hash_algorithms:
         if hash in hashlib.algorithms_guaranteed:
             valid_hashes.append(hash)
+        else:
+            logger.warning(
+                f"Submitted hash {hash} isn't valid. Removing from hash config."
+            )
     if len(valid_hashes) == 0:
+        logger.warning(
+            "No valid hash algorithms parsed. Using defaults: md5, sha256..."
+        )
         return ["md5", "sha256"]
     return valid_hashes
