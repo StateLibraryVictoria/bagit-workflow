@@ -327,3 +327,18 @@ def test_cleaup_transfer(valid_trigger_file, id_parser):
 def test_guess_primary_id(input, expected):
     result = guess_primary_id(input)
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("md5,sha256,sha512", ["md5", "sha256", "sha512"]),
+        (None, ["md5", "sha256"]),
+        ("sha512", ["sha512"]),
+        ("exception", ["md5", "sha256"]),
+        ("nonsense,md5", ["md5"]),
+    ],
+)
+def test_get_hash_algorithms(input, expected):
+    result = get_hash_algorithms(input)
+    assert result == expected

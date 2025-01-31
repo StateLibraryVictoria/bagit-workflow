@@ -482,4 +482,10 @@ def get_hash_algorithms(string_input) -> str:
         hash_algorithms = string_input.split(",")
     else:
         hash_algorithms = [string_input]
-    return hash_algorithms
+    valid_hashes = []
+    for hash in hash_algorithms:
+        if hash in hashlib.algorithms_guaranteed:
+            valid_hashes.append(hash)
+    if len(valid_hashes) == 0:
+        return ["md5", "sha256"]
+    return valid_hashes
