@@ -457,3 +457,29 @@ def load_id_parser(
 ) -> IdParser:
     """Returns configured IdParser based on regex in shared_constants.py"""
     return IdParser(validation_pattern, identifier_pattern)
+
+
+def load_config() -> dict:
+    config = {
+        "TRANSFER_DIR": os.getenv("TRANSFER_DIR"),
+        "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
+        "LOGGING_DIR": os.getenv("LOGGING_DIR"),
+        "DATABASE": os.getenv("DATABASE"),
+        "HASH_ALGORITHMS": os.getenv("HASH_ALGORITHMS"),
+    }
+    return config
+
+
+def get_hash_config() -> str:
+    config = load_config()
+    return get_hash_algorithms(config.get("HASH_ALGORITHMS"))
+
+
+def get_hash_algorithms(string_input) -> str:
+    if string_input == None:
+        hash_algorithms = ["md5", "sha256"]
+    elif "," in string_input:
+        hash_algorithms = string_input.split(",")
+    else:
+        hash_algorithms = [string_input]
+    return hash_algorithms
