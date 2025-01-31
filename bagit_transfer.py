@@ -7,22 +7,6 @@ import sys
 
 logger = logging.getLogger(__name__)
 
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
-
-
-def load_config():
-    config = {
-        "TRANSFER_DIR": os.getenv("TRANSFER_DIR"),
-        "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
-        "LOGGING_DIR": os.getenv("LOGGING_DIR"),
-        "DATABASE": os.getenv("DATABASE"),
-    }
-    return config
-
 
 def main():
     # load variables
