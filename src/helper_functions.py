@@ -507,3 +507,22 @@ def get_hash_algorithms(string_input) -> str:
         )
         return ["md5", "sha256"]
     return valid_hashes
+
+
+def runfile_check(directory):
+    runfile = os.path.join(directory, RUNNING)
+
+    if os.path.exists(directory) and os.path.isfile(runfile):
+        sys.exit()
+    else:
+        with open(runfile, "w") as f:
+            f.write("Running...")
+            logger.debug(f"Creating runfile: {runfile}")
+
+
+def runflie_cleanup(directory):
+    runfile = os.path.join(directory, RUNNING)
+
+    os.remove(runfile)
+    logger.debug(f"Removing runfile: {runfile}")
+    sys.exit()

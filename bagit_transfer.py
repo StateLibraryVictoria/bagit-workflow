@@ -3,7 +3,6 @@ from src.database_functions import *
 import bagit
 import time
 import sqlite3
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +14,8 @@ def main():
     transfer_dir = config.get("TRANSFER_DIR")
     archive_dir = config.get("ARCHIVE_DIR")
     database = config.get("DATABASE")
+
+    runfile_check(transfer_dir)
 
     valid_transfers = []
 
@@ -30,7 +31,7 @@ def main():
     for dir in [transfer_dir, archive_dir]:
         if not os.path.exists(dir):
             logger.error(f"Directory: {dir} does not exist.")
-            sys.exit()
+            runflie_cleanup(transfer_dir)
 
     # Get the .ok files at the transfer directory
     at_transfer = os.listdir(transfer_dir)
@@ -38,7 +39,7 @@ def main():
 
     if len(ok_files) == 0:
         logger.info("No trigger files staged in transfer directory.")
-        sys.exit()
+        runflie_cleanup(transfer_dir)
     else:
         id_parser = load_id_parser()
         logger.info(f"Transfers to process: {len(ok_files)}")
@@ -142,6 +143,7 @@ def main():
                         f"Transferred bag {folder} was invalid. Removing transferred data... \n Error recorded: {e}"
                     )
                     os.rmdir(output_dir)
+                    continue
             else:
                 logger.error(
                     f"Error moving bag: metadata could not be generated or read."
@@ -149,6 +151,7 @@ def main():
                 tf.set_error(
                     f"Error moving bag to preservation directory: metadata could not be generated or read."
                 )
+    runflie_cleanup(transfer_dir)
 
 
 if __name__ == "__main__":

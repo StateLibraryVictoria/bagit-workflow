@@ -1,10 +1,14 @@
 import logging
 from datetime import datetime
 import json
+import sys
 import os
 
 headers = json.loads(os.getenv("REQUIRED_HEADERS"))
 logger = logging.getLogger(__name__)
+
+# running filename
+RUNNING = ".running0"
 
 # metadata tags
 PRIMARY_ID = "External-Identifier"
