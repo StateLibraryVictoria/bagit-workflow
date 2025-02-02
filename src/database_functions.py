@@ -54,7 +54,7 @@ def configure_transfer_db(database_path):
             raise
         try:
             cur.execute(
-                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
+                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, CollectionIdentifier, BagUUID, TransferDate, BagDate, PayloadOxum, ManifestSHA256Hash, StartTime, EndTime, OriginalFolderTitle, OutcomeFolderTitle, ContactName, SourceOrganisation)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table transfers: {e}")
@@ -178,22 +178,44 @@ def insert_validation_outcome(
 
 
 def insert_transfer(
-    folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time, db_path
+    output_folder,
+    bag: bagit.Bag,
+    primary_id,
+    manifest_hash,
+    start_time,
+    end_time,
+    db_path,
 ):
+    """Contains all the required information to log a transfer to the database.
+
+    Keyword arguments:
+    output_folder -- final output location
+    bag -- the bag being transferred, which provides most of the metadata
+    primary_id -- the collection identifier or preliminary identifier for the material
+    manifest_hash -- a checksum value for a specific manifest file for deduplication
+    start_time -- when the transfer commenced
+    end_time -- when the transfer completed
+    db_path -- path to the database"""
     collection_id = primary_id
     with get_db_connection(db_path) as con:
         cur = con.cursor()
         try:
             cur.execute(
-                "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, BagDate, PayloadOxum, ManifestSHA256Hash, StartTime, EndTime, OriginalFolderTitle, OutcomeFolderTitle, ContactName, SourceOrganisation) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     collection_id,
                     bag.info[UUID_ID],  # UUID field
                     time.strftime("%Y%m%d"),
+                    bag.info[BAGGING_DATE],
                     bag.info["Payload-Oxum"],
                     manifest_hash,
-                    copy_time,
+                    start_time,
+                    end_time,
+                    bag.info.get(EXTERNAL_DESCRIPTION, "Not recorded"),
+                    output_folder,
+                    bag.info.get(CONTACT, "Not recorded"),
+                    bag.info.get(SOURCE_ORGANIZATION, "Not recorded"),
                 ),
             )
         except sqlite3.DatabaseError as e:

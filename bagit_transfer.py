@@ -57,6 +57,7 @@ def main():
         cur = con.cursor()
 
         for tf in valid_transfers:
+            transfer_start = datetime.now()
             # generate and add a random uuid as External-Identifier
             metadata = tf.get_metadata()
             folder = tf.get_directory()
@@ -112,17 +113,29 @@ def main():
                 if output_bag.is_valid():
                     try:
                         insert_transfer(
-                            folder, bag, primary_id, manifest_hash, copy_time, database
+                            output_dir,
+                            bag,
+                            primary_id,
+                            manifest_hash,
+                            transfer_start,
+                            datetime.now(),
+                            database,
                         )
                         tf.cleanup_transfer()
                     except Exception as e:
                         logger.error(
                             f"Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
                         )
+                        tf.set_error(
+                            f"DATABASE WRITE ERROR -- Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
+                        )
                         continue
                 else:
                     logger.error(
                         "Transferred bag was invalid. Removing transferred data."
+                    )
+                    tf.set_error(
+                        f"Transferred bag {folder} was invalid. Removing transferred data."
                     )
                     os.rmdir(output_dir)
             else:

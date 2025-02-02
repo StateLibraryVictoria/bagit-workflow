@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 import json
 import os
 
@@ -11,6 +12,7 @@ UUID_ID = "Internal-Sender-Identifier"
 CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
 SOURCE_ORGANIZATION = "Source-Organization"
+BAGGING_DATE = "Bagging-Date"
 
 """Identifier parsing patterns"""
 # Assumes the identifiers will be final value or followed by " ", "_" or "-".
