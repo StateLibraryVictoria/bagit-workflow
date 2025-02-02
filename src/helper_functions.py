@@ -316,6 +316,9 @@ class NewTransfer(Transfer):
             CONTACT: owner,
             EXTERNAL_DESCRIPTION: filename,
         }
+        source_org = get_source_org()
+        if source_org is not None:
+            metadata.update({SOURCE_ORGANIZATION: source_org})
         return metadata
 
     def _get_dir_owner(
@@ -466,8 +469,16 @@ def load_config() -> dict:
         "LOGGING_DIR": os.getenv("LOGGING_DIR"),
         "DATABASE": os.getenv("DATABASE"),
         "HASH_ALGORITHMS": os.getenv("HASH_ALGORITHMS"),
+        "SOURCE_ORG": os.getenv("SOURCE_ORG"),
     }
     return config
+
+
+config = load_config()
+
+
+def get_source_org() -> str:
+    return config.get("SOURCE_ORG")
 
 
 def get_hash_config() -> str:

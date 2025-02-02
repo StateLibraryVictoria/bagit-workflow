@@ -10,6 +10,7 @@ PRIMARY_ID = "External-Identifier"
 UUID_ID = "Internal-Sender-Identifier"
 CONTACT = "Contact-Name"
 EXTERNAL_DESCRIPTION = "External-Description"
+SOURCE_ORGANIZATION = "Source-Organization"
 
 """Identifier parsing patterns"""
 # Assumes the identifiers will be final value or followed by " ", "_" or "-".
