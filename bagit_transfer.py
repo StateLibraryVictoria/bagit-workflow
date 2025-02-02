@@ -67,6 +67,7 @@ def main():
                     bag = tf.make_bag()
                 except Exception as e:
                     logger.error(f"Error processing bag: {e}")
+                    tf.set_error(f"Error processing bag: {e}")
                     continue
 
                 # check if bag is valid before moving.
@@ -85,9 +86,13 @@ def main():
                     identical_folders = results.fetchall()
                     if len(identical_folders) > 0:
                         logger.error(
-                            f"Manifest hash conflict: folder {folder} with transaction id {identical_folders[0][0]} and folder title {identical_folders[0][1]}"
+                            f"Manifest hash conflict: transfer with UUID {identical_folders[0][2]} and "
+                            + f"transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]} matches this transfer."
                         )
-                        tf.set_error("Folder is a duplicate.")
+                        tf.set_error(
+                            f"Folder is a duplicate -- an identical transfer has been identified with UUID {identical_folders[0][2]} "
+                            + f"and transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]}."
+                        )
                         continue
 
                     # Check output directory
@@ -105,12 +110,11 @@ def main():
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
 
-                    copy_time = timed_rsync_copy(folder, output_dir)
-
                 output_bag = bagit.Bag(output_dir)
 
                 # check copied bag is valid and if so update database
-                if output_bag.is_valid():
+                try:
+                    output_bag.validate()
                     try:
                         insert_transfer(
                             output_dir,
@@ -130,16 +134,21 @@ def main():
                             f"DATABASE WRITE ERROR -- Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
                         )
                         continue
-                else:
+                except bagit.BagValidationError as e:
                     logger.error(
                         "Transferred bag was invalid. Removing transferred data."
                     )
                     tf.set_error(
-                        f"Transferred bag {folder} was invalid. Removing transferred data."
+                        f"Transferred bag {folder} was invalid. Removing transferred data... \n Error recorded: {e}"
                     )
                     os.rmdir(output_dir)
             else:
-                logger.error(f"Error moving bag: {e}")
+                logger.error(
+                    f"Error moving bag: metadata could not be generated or read."
+                )
+                tf.set_error(
+                    f"Error moving bag to preservation directory: metadata could not be generated or read."
+                )
 
 
 if __name__ == "__main__":
