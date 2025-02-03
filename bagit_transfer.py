@@ -96,20 +96,33 @@ def main():
                         )
                         continue
 
-                    # Check output directory
+                    # Get transfer index
                     try:
                         count = get_count_collections_processed(primary_id, database)
                     except Exception as e:
                         continue
                     count += 1
-                    # Copy to output directory
+
+                    # Build output folder path
                     output_folder = os.path.join(
                         os.path.basename(os.path.normpath(primary_id)), f"t{count}"
                     )
                     output_dir = os.path.join(archive_dir, output_folder)
 
+                    # Test for existing directory
+                    logger.info("Testing to see if output folder exists.")
                     if not os.path.exists(output_dir):
+                        logger.info(f"Making the output directory {output_dir}")
                         os.makedirs(output_dir)
+                    else:
+                        logger.error(
+                            f"Output directory {output_dir} already exists. Skipping."
+                        )
+                        tf.set_error(f"Output directory {output_dir} already exists.")
+                        continue
+
+                # copy folder to output directory
+                process_transfer(folder, output_dir)
 
                 output_bag = bagit.Bag(output_dir)
 

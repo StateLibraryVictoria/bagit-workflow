@@ -3,6 +3,7 @@ import re
 import uuid
 import bagit
 import time
+import platform
 import shutil
 import hashlib
 import subprocess
@@ -10,6 +11,8 @@ import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
 from src.shared_constants import *
+
+logger = logging.getLogger(__name__)
 
 
 class TriggerFile:
@@ -413,9 +416,37 @@ def guess_primary_id(
     return None
 
 
-def timed_rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> float:
+def process_transfer(
+    source_folder: str,
+    output_folder: str,
+    rsync_flags: str = "-vrlt",
+    robocopy_flags: str = "/e /z /copy:DAT /dcopy:DAT /v",
+) -> bool:
+    """Copies data from folder to output folder using Robocopy for Windows or rsync for
+    Linux. Default flags are provided in each the respective functions.
+    """
+    WORKING_OS = platform.system()
+
+    if WORKING_OS == "Linux":
+        logger.info("Platform is Linux. Attempting to copy using rsync...")
+        try:
+            rsync_copy(source_folder, output_folder, rsync_flags)
+            return True
+        except Exception as e:
+            logger.info(f"Rsync failed with exception: {e}")
+    try:
+        logger.warning(
+            f"Copy methods failed, attempting to copy with shutil.copytree(). This may cause loss of date metadata. Followup required."
+        )
+        shutil.copytree(source_folder, output_folder)
+        return True
+    except Exception as e:
+        logger.error(f"Copying with shutil.copytree failed.")
+        return False
+
+
+def rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> None:
     """Copies data from folder to output_dir using rsync subprocess with -vrlt flags.
-    Returns the time processing takes as a float using time.perf_counter().
     Default rsync flags evaluate to verbose, recursive, links, preserve modification times.
 
     Keyword arguments:
@@ -423,12 +454,12 @@ def timed_rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> floa
     output_dir -- location to copy to
     flags -- passed to rsync subprocess, (default -vrlt)
     """
-    start = time.perf_counter()
     # may need to add bandwidth limit --bwlimit=1000
     try:
         result = subprocess.run(
             ["rsync", flags, "--checksum", f"{folder}/", output_dir], check=True
         )
+        logger.info("Retrieving stdout...")
         logger.info(result.stdout)
         if result.stderr:
             logger.error(result.stderr)
@@ -436,7 +467,6 @@ def timed_rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> floa
         logger.error(f"rsync failed for folder {folder} to {output_dir}")
         logger.error(f"Error: {e}")
         raise
-    return time.perf_counter() - start
 
 
 def compute_manifest_hash(folder: str, target_manifest="manifest-sha256.txt") -> str:
