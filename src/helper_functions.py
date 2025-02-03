@@ -434,6 +434,13 @@ def process_transfer(
             return True
         except Exception as e:
             logger.info(f"Rsync failed with exception: {e}")
+    elif WORKING_OS == "Windows":
+        logger.info("Platform is Windows. Attempting to copy using Robocopy...")
+        try:
+            robocopy_copy(source_folder, output_folder, robocopy_flags)
+            return True
+        except Exception as e:
+            logger.info(f"Robocopy failed with exception: {e}")
     try:
         logger.warning(
             f"Copy methods failed, attempting to copy with shutil.copytree(). This may cause loss of date metadata. Followup required."
@@ -443,6 +450,20 @@ def process_transfer(
     except Exception as e:
         logger.error(f"Copying with shutil.copytree failed.")
         return False
+
+
+def robocopy_copy(
+    folder: str, output_dir: str, flags: str = "/e /z /copy:DAT /dcopy:DAT /v"
+) -> None:
+    try:
+        result = subprocess.run(["robocopy", folder, output_dir, flags], check=True)
+        logger.info(result.stdout)
+        if result.stderr:
+            logger.error(result.stderr)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"robocopy failed for folder {folder} to {output_dir}")
+        logger.error(f"Error: {e}")
+        raise
 
 
 def rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> None:
