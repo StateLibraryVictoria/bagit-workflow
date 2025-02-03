@@ -112,12 +112,17 @@ If either attempt fails the process will attempt to copy using [`shutil.copytree
 The archive directory is arranged as follows:
 
         archive/
-        |--[collection-identifier-a]
-        |  |--[t1]
-        |  |--[t2]
-        |  |--[tn]
-        |--[collection identifier-b]
-        |  |--[t1]
+        |--[collection-identifier-a]/
+        |  |--[t1]/                         # contains a bag
+        |  |  |-- data/                     # contains all supplied files
+        |  |  |-- bag-info.txt              # contains bag metadata
+        |  |  |-- bagit.txt                 # contains bag declaration
+        |  |  |-- manifest-sha256.txt       # contains filenames and sha256 checksums for all files in data/
+        |  |  |-- tagmanifest-sha256.txt    # contains filenames and sha256 checksums for all metadata and manifest files
+        |  |--[t2]/
+        |  |--[tn]/
+        |--[collection identifier-b]/
+        |  |--[t1]/
         ...
 
 A sqlite3 database is used to store a record of collections (folders with the same identifier) and transactions (`t1`, `t1`, ... etc).  
