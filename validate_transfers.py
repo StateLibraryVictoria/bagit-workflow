@@ -58,43 +58,35 @@ def main():
 
     for collection in collections:
         col_dir = os.path.join(archive_dir, collection)
+
+        # skip things that are just files in the top-level directory
         if os.path.isfile(col_dir):
             continue
 
+        # get a list of subfolders
         transfers = os.listdir(col_dir)
+
+        # iterate through each transfer
         for transfer in transfers:
+
+            # build the path
             transfer_dir = os.path.join(col_dir, transfer)
+
+            # check it's not a file
             if not os.path.isdir(transfer_dir):
                 continue
+
+            # start tracking validation time
             validation_start_time = datetime.now()
-            bag_path = os.path.join(archive_dir, collection, transfer_dir)
-            try:
-                bag = bagit.Bag(bag_path)
-            except Exception as e:
-                logger.error(f"Error validating bag {bag_path}: {e}")
-                # update database with failure
-                continue
-            try:
-                baguuid = bag.info[UUID_ID]
-            except KeyError as e:
-                logger.error(f"Error parsing UUID from bag {bag_path}: {e}")
-                baguuid = None
-            try:
-                bag.validate()
-                logger.info(f"Validated bag at: {bag_path}")
-                errors = None
-            except bagit.BagValidationError as e:
-                logger.warning(
-                    f"Error validating bag at {bag_path} with UUID {baguuid}: {e}"
-                )
-                errors = f"{e}"
-            uuid_error = "Bag UUID not present in bag-info.txt"
-            errors = (
-                errors
-                if baguuid is not None
-                else (uuid_error if errors is None else errors + ";" + uuid_error)
-            )
+
+            bag_path = transfer_dir
+
+            # run the validation process
+            baguuid, errors = validate_bag_at(bag_path)
+
+            # now the validation process is done
             validation_end_time = datetime.now()
+
             # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
             insert_validation_outcome(

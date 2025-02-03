@@ -577,3 +577,68 @@ def runflie_cleanup(directory):
     os.remove(runfile)
     logger.debug(f"Removing runfile: {runfile}")
     sys.exit()
+
+
+def parse_uuids(list):
+    valid = []
+    for id in list:
+        try:
+            uuid.UUID(id)
+            valid.append(id)
+            logger.error(valid)
+        except Exception as e:
+            logger.error(f"Error parsing id {e}")
+            continue
+    return valid
+
+
+def validate_bag_at(directory) -> tuple[str, str]:
+    """Multi-step process that validates the bag and returns a tuple of UUID and errors.
+
+    Keyword arguments:
+    directory -- path to bag to be checked"""
+    bag_uuid = []
+    errors = []
+
+    try:
+        bag = bagit.Bag(directory)
+    except Exception as e:
+        logger.error(f"Error validating bag {directory}: {e}")
+        errors.append(f"{e}")
+        # update database with failure
+        return (None, ";".join(errors))
+
+    # try getting the UUID
+    try:
+        bag_uuid = bag.info[UUID_ID]
+        if type(bag_uuid) == list:
+            bag_uuid = parse_uuids(bag_uuid)
+        else:
+            bag_uuid = parse_uuids([bag_uuid])
+        if len(bag_uuid) == 0:
+            bag_uuid = None
+            errors.append("Bag UUID not present in bag-info.txt")
+        elif len(bag_uuid) == 1:
+            bag_uuid = bag_uuid[0]
+        else:
+            errors.append(f"Too many UUIDs parsed from bag: {';'.join(bag_uuid)}")
+            bag_uuid = None
+    except KeyError as e:
+        logger.error(f"Error parsing UUID from bag {directory}: {e}")
+        bag_uuid = None
+        errors.append("Bag UUID not present in bag-info.txt")
+
+    # finally try validating the bag
+    try:
+        bag.validate()
+        logger.info(f"Validated bag at: {directory}")
+    except bagit.BagValidationError as e:
+        logger.warning(f"Error validating bag at {directory} with UUID {bag_uuid}: {e}")
+        errors.append(f"{e}")
+
+    if len(errors) == 0:
+        errors = None
+    else:
+        errors = ";".join(errors)
+
+    return (bag_uuid, errors)
