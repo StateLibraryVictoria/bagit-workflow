@@ -73,24 +73,38 @@ def test_configure_transfer_db_twice_is_fine(database_path):
 
 # test_insert_transfer
 def test_insert_transfer_valid_data_right_length_transfers(existing_bag, database_path):
+    start = datetime.now()
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
     insert_transfer(
-        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+        str(existing_bag),
+        existing_bag,
+        "RA-9999-99",
+        hash,
+        start,
+        datetime.now(),
+        database_path,
     )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
     result = cur.execute("SELECT * FROM Transfers;").fetchall()
-    assert len(result[0]) == 7
+    assert len(result[0]) == 13
 
 
 def test_insert_transfer_valid_data_right_columns_transfers(
     existing_bag, database_path
 ):
+    start = datetime.now()
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
     insert_transfer(
-        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+        str(existing_bag),
+        existing_bag,
+        "RA-9999-99",
+        hash,
+        start,
+        datetime.now(),
+        database_path,
     )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
@@ -101,9 +115,15 @@ def test_insert_transfer_valid_data_right_columns_transfers(
         "CollectionIdentifier",
         "BagUUID",
         "TransferDate",
+        "BagDate",
         "PayloadOxum",
         "ManifestSHA256Hash",
-        "TransferTimeSeconds",
+        "StartTime",
+        "EndTime",
+        "OriginalFolderTitle",
+        "OutcomeFolderTitle",
+        "ContactName",
+        "SourceOrganisation",
     ]
 
 
@@ -111,10 +131,17 @@ def test_insert_transfer_valid_data_right_columns_transfers(
 def test_insert_transfer_valid_data_right_length_collections(
     existing_bag, database_path
 ):
+    start = datetime.now()
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
     insert_transfer(
-        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+        str(existing_bag),
+        existing_bag,
+        "RA-9999-99",
+        hash,
+        start,
+        datetime.now(),
+        database_path,
     )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
@@ -125,10 +152,17 @@ def test_insert_transfer_valid_data_right_length_collections(
 def test_insert_transfer_valid_data_right_columns_collections(
     existing_bag, database_path
 ):
+    start = datetime.now()
     hash = compute_manifest_hash(str(existing_bag))
     configure_transfer_db(database_path)
     insert_transfer(
-        str(existing_bag), existing_bag, "RA-9999-99", hash, 2, database_path
+        str(existing_bag),
+        existing_bag,
+        "RA-9999-99",
+        hash,
+        start,
+        datetime.now(),
+        database_path,
     )
     db = sqlite3.connect(database_path)
     cur = db.cursor()
