@@ -272,14 +272,8 @@ def test_normalise_id(id_parser, input, expected):
     assert output == expected
 
 
-# test_timed_rsync_copy
-def test_timed_rsync_copy_takes_time(existing_bag, tmp_path):
-    time = timed_rsync_copy(existing_bag, tmp_path)
-    assert 1 > time > 0
-
-
-def test_timed_rsync_copy_succesfully_copies_bag(existing_bag, tmp_path):
-    timed_rsync_copy(existing_bag, tmp_path)
+def test_process_transfer_succesfully_copies_bag(existing_bag, tmp_path):
+    process_transfer(existing_bag, tmp_path)
     new_bag = bagit.Bag(os.path.join(tmp_path, str(existing_bag)))
     assert new_bag.validate()
 
