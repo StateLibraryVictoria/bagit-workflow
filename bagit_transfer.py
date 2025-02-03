@@ -3,25 +3,8 @@ from src.database_functions import *
 import bagit
 import time
 import sqlite3
-import sys
 
 logger = logging.getLogger(__name__)
-
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
-
-def load_config():
-    config = {
-        "TRANSFER_DIR": os.getenv("TRANSFER_DIR"),
-        "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
-        "LOGGING_DIR": os.getenv("LOGGING_DIR"),
-        "DATABASE": os.getenv("DATABASE"),
-    }
-    return config
-
 
 
 def main():
@@ -31,6 +14,8 @@ def main():
     transfer_dir = config.get("TRANSFER_DIR")
     archive_dir = config.get("ARCHIVE_DIR")
     database = config.get("DATABASE")
+
+    runfile_check(transfer_dir)
 
     valid_transfers = []
 
@@ -46,7 +31,7 @@ def main():
     for dir in [transfer_dir, archive_dir]:
         if not os.path.exists(dir):
             logger.error(f"Directory: {dir} does not exist.")
-            sys.exit()
+            runflie_cleanup(transfer_dir)
 
     # Get the .ok files at the transfer directory
     at_transfer = os.listdir(transfer_dir)
@@ -54,7 +39,7 @@ def main():
 
     if len(ok_files) == 0:
         logger.info("No trigger files staged in transfer directory.")
-        sys.exit()
+        runflie_cleanup(transfer_dir)
     else:
         id_parser = load_id_parser()
         logger.info(f"Transfers to process: {len(ok_files)}")
@@ -73,6 +58,7 @@ def main():
         cur = con.cursor()
 
         for tf in valid_transfers:
+            transfer_start = datetime.now()
             # generate and add a random uuid as External-Identifier
             metadata = tf.get_metadata()
             folder = tf.get_directory()
@@ -82,6 +68,7 @@ def main():
                     bag = tf.make_bag()
                 except Exception as e:
                     logger.error(f"Error processing bag: {e}")
+                    tf.set_error(f"Error processing bag: {e}")
                     continue
 
                 # check if bag is valid before moving.
@@ -100,47 +87,84 @@ def main():
                     identical_folders = results.fetchall()
                     if len(identical_folders) > 0:
                         logger.error(
-                            f"Manifest hash conflict: folder {folder} with transaction id {identical_folders[0][0]} and folder title {identical_folders[0][1]}"
+                            f"Manifest hash conflict: transfer with UUID {identical_folders[0][2]} and "
+                            + f"transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]} matches this transfer."
                         )
-                        tf.set_error("Folder is a duplicate.")
+                        tf.set_error(
+                            f"Folder is a duplicate -- an identical transfer has been identified with UUID {identical_folders[0][2]} "
+                            + f"and transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]}."
+                        )
                         continue
 
-                    # Check output directory
+                    # Get transfer index
                     try:
                         count = get_count_collections_processed(primary_id, database)
                     except Exception as e:
                         continue
                     count += 1
-                    # Copy to output directory
+
+                    # Build output folder path
                     output_folder = os.path.join(
                         os.path.basename(os.path.normpath(primary_id)), f"t{count}"
                     )
                     output_dir = os.path.join(archive_dir, output_folder)
 
+                    # Test for existing directory
+                    logger.info("Testing to see if output folder exists.")
                     if not os.path.exists(output_dir):
+                        logger.info(f"Making the output directory {output_dir}")
                         os.makedirs(output_dir)
+                    else:
+                        logger.error(
+                            f"Output directory {output_dir} already exists. Skipping."
+                        )
+                        tf.set_error(f"Output directory {output_dir} already exists.")
+                        continue
 
-                    copy_time = timed_rsync_copy(folder, output_dir)
+                # copy folder to output directory
+                process_transfer(folder, output_dir)
 
                 output_bag = bagit.Bag(output_dir)
 
                 # check copied bag is valid and if so update database
-                if output_bag.is_valid():
+                try:
+                    output_bag.validate()
                     try:
-                        insert_transfer(folder, bag, primary_id, manifest_hash, copy_time, database)
-                        cleanup_transfer(folder)
+                        insert_transfer(
+                            output_dir,
+                            bag,
+                            primary_id,
+                            manifest_hash,
+                            transfer_start,
+                            datetime.now(),
+                            database,
+                        )
+                        tf.cleanup_transfer()
                     except Exception as e:
                         logger.error(
                             f"Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
                         )
+                        tf.set_error(
+                            f"DATABASE WRITE ERROR -- Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
+                        )
                         continue
-                else:
+                except bagit.BagValidationError as e:
                     logger.error(
                         "Transferred bag was invalid. Removing transferred data."
                     )
+                    tf.set_error(
+                        f"Transferred bag {folder} was invalid. Removing transferred data... \n Error recorded: {e}"
+                    )
                     os.rmdir(output_dir)
+                    continue
             else:
-                logger.error(f"Error moving bag: {e}")
+                logger.error(
+                    f"Error moving bag: metadata could not be generated or read."
+                )
+                tf.set_error(
+                    f"Error moving bag to preservation directory: metadata could not be generated or read."
+                )
+    runflie_cleanup(transfer_dir)
 
 
 if __name__ == "__main__":

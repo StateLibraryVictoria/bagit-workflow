@@ -40,7 +40,7 @@ def invalid_trigger_file(tmp_path):
 
 
 @pytest.fixture
-def existing_bag_info_file(tmp_path):
+def existing_bag_trigger(tmp_path):
     file = tmp_path / "test_bag.ok"
     dir = tmp_path / "test_bag"
     dir.mkdir()
@@ -50,6 +50,7 @@ def existing_bag_info_file(tmp_path):
             "Contact-Name": "sbourke",
             "External-Description": "A test metadata package for a valid transfer.",
             "External-Identifier": "RA-9999-12",
+            UUID_ID: "6c7e785f-5aa9-486b-9772-35ef009fbc38",
         },
     )
     yield file
@@ -82,6 +83,7 @@ def id_parser():
     validation_pattern = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+"
     return IdParser(validation_pattern, identifier_pattern)
 
+
 @pytest.fixture
 def existing_bag(tmp_path):
     dir = tmp_path / "test_bag"
@@ -101,7 +103,7 @@ def existing_bag(tmp_path):
     )
     yield bag
 
-    
+
 @pytest.fixture
 def invalid_trigger_path(tmp_path):
     file = tmp_path / "invalid_trigger.ok"
@@ -110,13 +112,13 @@ def invalid_trigger_path(tmp_path):
     file2 = dir / "data.txt"
     yield tmp_path
 
-    
+
 """TriggerFile tests"""
+
 
 def test_load_metadata_path_correct(valid_trigger_file, id_parser):
     tf = TriggerFile(valid_trigger_file, id_parser)
     assert tf.get_metadata().get("External-Description") == "RA.9999.99_valid_trigger"
-
 
 
 def test_validation_succeeds(valid_trigger_file, id_parser):
@@ -125,10 +127,10 @@ def test_validation_succeeds(valid_trigger_file, id_parser):
     assert tf.validate() == True
 
 
-
-def test_get_metadata_from_bag(existing_bag_info_file, valid_metadata_no_uuid, id_parser):
+def test_get_metadata_from_bag(existing_bag_trigger, valid_metadata_no_uuid, id_parser):
     data = valid_metadata_no_uuid
-    tf = TriggerFile(existing_bag_info_file, id_parser)
+    data.update({UUID_ID: "6c7e785f-5aa9-486b-9772-35ef009fbc38"})
+    tf = TriggerFile(existing_bag_trigger, id_parser)
     # clean up the extra keys we don't need
     result = tf.get_metadata()
     for key in ["Payload-Oxum", "Bagging-Date", "Bag-Software-Agent"]:
@@ -136,8 +138,27 @@ def test_get_metadata_from_bag(existing_bag_info_file, valid_metadata_no_uuid, i
     assert data == result
 
 
+def test_process_valid_bag_is_valid(existing_bag_trigger, id_parser):
+    tf = TriggerFile(existing_bag_trigger, id_parser)
+    assert tf.validate() == True
+
+
+def test_bag_with_uuid_is_not_updated_during_validation(
+    existing_bag_trigger, id_parser
+):
+    expected = "6c7e785f-5aa9-486b-9772-35ef009fbc38"
+    tf = TriggerFile(existing_bag_trigger, id_parser)
+    tf.validate()
+    md = tf.get_metadata()
+    print(md)
+    uuid = md.get(UUID_ID)
+    assert uuid == expected
+
+
 def test_error_file_creation(invalid_trigger_file, id_parser):
-    logger.warning(f"Invalid trigger file fiture exists? {os.path.exists(invalid_trigger_file)}")
+    logger.warning(
+        f"Invalid trigger file fiture exists? {os.path.exists(invalid_trigger_file)}"
+    )
     tf = TriggerFile(invalid_trigger_file, id_parser)
     tf.validate()
     file = f"{tf.get_directory()}.error"
@@ -149,7 +170,7 @@ def test_error_file_data(invalid_trigger_file, id_parser):
     tf = TriggerFile(invalid_trigger_file, id_parser)
     tf.validate()
     file = f"{tf.get_directory()}.error"
-    expected = f'Error parsing metadata.{os.linesep}See logfile for more information.'
+    expected = f"Error parsing metadata.{os.linesep}See logfile for more information."
     with open(file, "r") as f:
         data = f.read()
     assert expected == data
@@ -160,7 +181,9 @@ def test_not_ok_file_raises_exception(tmp_path, id_parser):
     with pytest.raises(ValueError):
         tf = TriggerFile(file, id_parser)
 
+
 """IdParser Tests"""
+
 
 @pytest.mark.parametrize(
     "input, expected",
@@ -249,16 +272,11 @@ def test_normalise_id(id_parser, input, expected):
     assert output == expected
 
 
-# test_timed_rsync_copy
-def test_timed_rsync_copy_takes_time(existing_bag, tmp_path):
-    time = timed_rsync_copy(existing_bag, tmp_path)
-    assert 1 > time > 0
-
-
-def test_timed_rsync_copy_succesfully_copies_bag(existing_bag, tmp_path):
-    timed_rsync_copy(existing_bag, tmp_path)
+def test_process_transfer_succesfully_copies_bag(existing_bag, tmp_path):
+    process_transfer(existing_bag, tmp_path)
     new_bag = bagit.Bag(os.path.join(tmp_path, str(existing_bag)))
     assert new_bag.validate()
+
 
 @pytest.fixture
 def manifest_filepath(tmp_path):
@@ -271,6 +289,7 @@ def manifest_filepath(tmp_path):
         )
     yield dir
 
+
 # test_compute_manifest_hash
 def test_compute_manifest_hash(manifest_filepath):
     expected = (
@@ -281,10 +300,12 @@ def test_compute_manifest_hash(manifest_filepath):
 
 
 # test_cleanup_transfer
-def test_cleaup_transfer(invalid_trigger_path):
-    cleanup_transfer(invalid_trigger_path / "invalid_trigger")
-    ok_files = os.listdir(invalid_trigger_path)
-    assert len(ok_files) == 0
+def test_cleaup_transfer(valid_trigger_file, id_parser):
+    tf = TriggerFile(valid_trigger_file, id_parser)
+    path = tf.get_directory()
+    tf.cleanup_transfer()
+    assert not os.path.exists(path)
+
 
 # test guessing primary id
 @pytest.mark.parametrize(
@@ -294,9 +315,24 @@ def test_cleaup_transfer(invalid_trigger_path):
         (["SC1234", "RA-8888-88", "POL-1234", "RA-9999-99"], "RA-8888-88"),
         (["nonsense"], None),
         (["SC1234"], "SC1234"),
-        ("RA-999-99","RA-999-99")
+        ("RA-999-99", "RA-999-99"),
     ],
 )
 def test_guess_primary_id(input, expected):
     result = guess_primary_id(input)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("md5,sha256,sha512", ["md5", "sha256", "sha512"]),
+        (None, ["md5", "sha256"]),
+        ("sha512", ["sha512"]),
+        ("exception", ["md5", "sha256"]),
+        ("nonsense,md5", ["md5"]),
+    ],
+)
+def test_get_hash_algorithms(input, expected):
+    result = get_hash_algorithms(input)
     assert result == expected

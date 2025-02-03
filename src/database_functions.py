@@ -1,16 +1,9 @@
 import bagit
 import sqlite3
-import logging
 import time
+import pandas as pd
 from contextlib import contextmanager
-
-logger = logging.getLogger(__name__)
-
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
+from src.shared_constants import *
 
 
 def get_count_collections_processed(primary_id, db_path):
@@ -61,7 +54,7 @@ def configure_transfer_db(database_path):
             raise
         try:
             cur.execute(
-                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds)"
+                "CREATE TABLE IF NOT EXISTS Transfers(TransferID INTEGER PRIMARY KEY AUTOINCREMENT, CollectionIdentifier, BagUUID, TransferDate, BagDate, PayloadOxum, ManifestSHA256Hash, StartTime, EndTime, OriginalFolderTitle, OutcomeFolderTitle, ContactName, SourceOrganisation)"
             )
         except sqlite3.OperationalError as e:
             logger.error(f"Error creating table transfers: {e}")
@@ -93,41 +86,46 @@ def start_validation(begin_time, db_path):
         try:
             cur.execute(
                 "INSERT INTO ValidationActions(CountBagsValidated, CountBagsWithErrors, StartAction, EndAction, Status) VALUES (?, ?, ?, ?, ?)",
+                (0, 0, begin_time, None, "Running"),
+            )
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
+            return None
+        try:
+            i = cur.execute(
+                "SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC"
+            )
+            identifier = i.fetchone()[0]
+            return identifier
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Error inserting record into ValidationActions table: {e}")
+            return None
+
+
+def end_validation(validation_action_id, end_time, db_path):
+    with get_db_connection(db_path) as con:
+        cur = con.cursor()
+        try:
+            cur.execute(
+                "UPDATE ValidationActions SET EndAction =?, Status='Complete' WHERE ValidationActionsId =?",
                 (
-                    0,
-                    0, 
-                    begin_time,
-                    None,
-                    "Running"
+                    end_time,
+                    validation_action_id,
                 ),
             )
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting record into ValidationOutcome table: {e}")
             return None
         try:
-            i = cur.execute("SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC")
+            i = cur.execute(
+                "SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC"
+            )
             identifier = i.fetchone()[0]
             return identifier
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting record into ValidationActions table: {e}")
             return None
-        
-def end_validation(validation_action_id, end_time, db_path):
-    with get_db_connection(db_path) as con:
-        cur = con.cursor()
-        try:
-            cur.execute("UPDATE ValidationActions SET EndAction =?, Status='Complete' WHERE ValidationActionsId =?", 
-                            (end_time, validation_action_id,))
-        except sqlite3.DatabaseError as e:
-            logger.error(f"Error inserting record into ValidationOutcome table: {e}")
-            return None
-        try:
-            i = cur.execute("SELECT ValidationActionsId FROM ValidationActions ORDER BY ValidationActionsId DESC")
-            identifier = i.fetchone()[0]
-            return identifier
-        except sqlite3.DatabaseError as e:
-            logger.error(f"Error inserting record into ValidationActions table: {e}")
-            return None
+
 
 def insert_validation_outcome(
     validation_action_id,
@@ -143,16 +141,24 @@ def insert_validation_outcome(
         cur = con.cursor()
         if outcome:
             try:
-                cur.execute("UPDATE ValidationActions SET CountBagsValidated = CountBagsValidated + 1 WHERE ValidationActionsId =?", 
-                            (validation_action_id,))
+                cur.execute(
+                    "UPDATE ValidationActions SET CountBagsValidated = CountBagsValidated + 1 WHERE ValidationActionsId =?",
+                    (validation_action_id,),
+                )
             except sqlite3.DatabaseError as e:
-                logger.error(f"Error updating record into ValidationActions table for action {validation_action_id}: {e}")
-        else: 
+                logger.error(
+                    f"Error updating record into ValidationActions table for action {validation_action_id}: {e}"
+                )
+        else:
             try:
-                cur.execute("UPDATE ValidationActions SET CountBagsWithErrors = CountBagsWithErrors + 1 WHERE ValidationActionsId =?", 
-                            (validation_action_id,))
+                cur.execute(
+                    "UPDATE ValidationActions SET CountBagsWithErrors = CountBagsWithErrors + 1 WHERE ValidationActionsId =?",
+                    (validation_action_id,),
+                )
             except sqlite3.DatabaseError as e:
-                logger.error(f"Error updating record into ValidationActions table for action {validation_action_id}: {e}")
+                logger.error(
+                    f"Error updating record into ValidationActions table for action {validation_action_id}: {e}"
+                )
         outcome = "Pass" if outcome else "Fail"
         try:
             cur.execute(
@@ -172,22 +178,44 @@ def insert_validation_outcome(
 
 
 def insert_transfer(
-    folder, bag: bagit.Bag, primary_id, manifest_hash, copy_time, db_path
+    output_folder,
+    bag: bagit.Bag,
+    primary_id,
+    manifest_hash,
+    start_time,
+    end_time,
+    db_path,
 ):
+    """Contains all the required information to log a transfer to the database.
+
+    Keyword arguments:
+    output_folder -- final output location
+    bag -- the bag being transferred, which provides most of the metadata
+    primary_id -- the collection identifier or preliminary identifier for the material
+    manifest_hash -- a checksum value for a specific manifest file for deduplication
+    start_time -- when the transfer commenced
+    end_time -- when the transfer completed
+    db_path -- path to the database"""
     collection_id = primary_id
     with get_db_connection(db_path) as con:
         cur = con.cursor()
         try:
             cur.execute(
-                "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, PayloadOxum, ManifestSHA256Hash, TransferTimeSeconds) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO transfers (CollectionIdentifier, BagUUID, TransferDate, BagDate, PayloadOxum, ManifestSHA256Hash, StartTime, EndTime, OriginalFolderTitle, OutcomeFolderTitle, ContactName, SourceOrganisation) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     collection_id,
                     bag.info[UUID_ID],  # UUID field
                     time.strftime("%Y%m%d"),
+                    bag.info[BAGGING_DATE],
                     bag.info["Payload-Oxum"],
                     manifest_hash,
-                    copy_time,
+                    start_time,
+                    end_time,
+                    bag.info.get(EXTERNAL_DESCRIPTION, "Not recorded"),
+                    output_folder,
+                    bag.info.get(CONTACT, "Not recorded"),
+                    bag.info.get(SOURCE_ORGANIZATION, "Not recorded"),
                 ),
             )
         except sqlite3.DatabaseError as e:
@@ -196,8 +224,56 @@ def insert_transfer(
         try:
             cur.execute(
                 "INSERT INTO collections(CollectionIdentifier) VALUES(:id) ON CONFLICT (CollectionIdentifier) DO UPDATE SET count = count + 1",
-                {"id": folder},
+                {"id": collection_id},
             )
         except sqlite3.DatabaseError as e:
             logger.error(f"Error inserting collections record: {e}")
             raise  # Reraise the exception to handle it outside if necessary
+
+
+def html_header(title: str):
+    header = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{title}</title>
+    <style>
+	body {{
+	  font-family: "Andale Mono", monospace;
+	}}
+	</style>
+</head>"""
+    return header
+
+
+def dump_database_tables_to_html(
+    title: str = "Data Archive Report",
+    db_paths: dict = {"transfer": None, "validation": None},
+    db_tables: dict = {"transfer": [], "validation": []},
+) -> str:
+    """Outputs specified transfer and validation databases tables as HTML.
+    Requires the table names to be specifically entered.
+    """
+    html_start = html_header(title)
+    html_body = "<body>"
+    for database in ["transfer", "validation"]:
+        if db_paths.get(database) is not None:
+            tables = db_tables.get(database)
+            if tables is not None:
+                html_body += f"<h2>Records of {database}</h2>"
+                with get_db_connection(db_paths.get(database)) as con:
+                    for table in tables:
+                        df = pd.read_sql_query(f"SELECT * from {table}", con)
+                        html_body += f"<h2>Contents of table {table}</h2>"
+                        html_body += df.to_html()
+
+    html_end = """</body>
+</html>"""
+    html = html_start + html_body + html_end
+    return html
+
+
+def return_db_query_as_html(db_path: str, sql_query: str):
+    with get_db_connection(db_path) as con:
+        df = pd.read_sql_query(sql_query, con)
+    return df.to_html()
