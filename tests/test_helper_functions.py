@@ -6,6 +6,9 @@ import pytest
 ## Expected headers are configured using .env. Tests are based on currently expected ones:
 # ["Source-Organization","Contact-Name","External-Description","Internal-Sender-Identifier"]
 
+SET_UUID_1 = "ce2c5343-0f5c-45e1-9cd1-5e10e748efef"
+SET_UUID_2 = "6c7e785f-5aa9-486b-9772-35ef009fbc38"
+
 
 @pytest.fixture
 def valid_metadata_no_uuid():
@@ -50,7 +53,7 @@ def existing_bag_trigger(tmp_path):
             "Contact-Name": "sbourke",
             "External-Description": "A test metadata package for a valid transfer.",
             "External-Identifier": "RA-9999-12",
-            UUID_ID: "6c7e785f-5aa9-486b-9772-35ef009fbc38",
+            UUID_ID: SET_UUID_2,
         },
     )
     yield file
@@ -98,7 +101,7 @@ def existing_bag(tmp_path):
             "Contact-Name": "Name",
             "External-Description": "A test metadata package for a valid transfer.",
             "External-Identifier": "RA-9999-99",
-            "Internal-Sender-Identifier": "ce2c5343-0f5c-45e1-9cd1-5e10e748efef",
+            "Internal-Sender-Identifier": SET_UUID_1,
         },
     )
     yield bag
@@ -336,3 +339,57 @@ def test_guess_primary_id(input, expected):
 def test_get_hash_algorithms(input, expected):
     result = get_hash_algorithms(input)
     assert result == expected
+
+
+# test bag validation
+
+
+def test_validate_bag_at_fake_path():
+    uuid, errors = validate_bag_at("path")
+    assert errors.startswith("Expected bagit.txt does not exist")
+
+
+def test_validate_bag_at_uuid(existing_bag):
+    uuid, errors = validate_bag_at(existing_bag.path)
+    assert uuid == SET_UUID_1
+
+
+def test_validate_bag_at_no_uuid(existing_bag):
+    existing_bag.info[UUID_ID] = [None]
+    existing_bag.save()
+    result = validate_bag_at(existing_bag.path)
+    assert result == (None, "Bag UUID not present in bag-info.txt")
+
+
+def test_validate_bag_at_two_uuids(existing_bag):
+    existing_bag.info[UUID_ID] = [SET_UUID_1, SET_UUID_2]
+    existing_bag.save()
+    result = validate_bag_at(existing_bag.path)
+    assert result == (
+        None,
+        f"Too many UUIDs parsed from bag: {';'.join([SET_UUID_1,SET_UUID_2])}",
+    )
+
+
+def test_validate_bag_at_valid(existing_bag):
+    result = validate_bag_at(existing_bag.path)
+    assert result == (SET_UUID_1, None)
+
+
+def test_validate_bag_at_no_manifest(existing_bag):
+    os.remove(os.path.join(existing_bag.path, "manifest-sha256.txt"))
+    result = validate_bag_at(existing_bag.path)
+    assert result == (
+        SET_UUID_1,
+        "Bag validation failed: manifest-sha256.txt exists in manifest but was not found on filesystem",
+    )
+
+
+def test_validate_bag_at_no_baginfo(existing_bag):
+    os.remove(os.path.join(existing_bag.path, "bag-info.txt"))
+    result = validate_bag_at(existing_bag.path)
+    assert result == (
+        None,
+        "Bag UUID not present in bag-info.txt;"
+        + "Bag validation failed: bag-info.txt exists in manifest but was not found on filesystem",
+    )
