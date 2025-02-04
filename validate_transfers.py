@@ -1,4 +1,3 @@
-import bagit
 from datetime import datetime
 import os
 import sqlite3
@@ -6,23 +5,6 @@ from src.helper_functions import *
 from src.database_functions import *
 
 logger = logging.getLogger(__name__)
-
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
-
-
-def load_config():
-    config = {
-        "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
-        "LOGGING_DIR": os.getenv("LOGGING_DIR"),
-        "VALIDATION_DB": os.getenv("VALIDATION_DB"),
-        "DATABASE": os.getenv("DATABASE"),
-        "REPORT_DIR": os.getenv("REPORT_DIR"),
-    }
-    return config
 
 
 def main():
