@@ -107,6 +107,8 @@ def main():
                     output_folder = os.path.join(
                         os.path.basename(os.path.normpath(primary_id)), f"t{count}"
                     )
+
+                    # this is the archive directory relative location written to db
                     output_dir = os.path.join(archive_dir, output_folder)
 
                     # Test for existing directory
@@ -131,7 +133,7 @@ def main():
                     output_bag.validate()
                     try:
                         insert_transfer(
-                            output_dir,
+                            output_folder,
                             bag,
                             primary_id,
                             manifest_hash,

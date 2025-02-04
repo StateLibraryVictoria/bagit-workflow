@@ -189,7 +189,7 @@ def insert_transfer(
     """Contains all the required information to log a transfer to the database.
 
     Keyword arguments:
-    output_folder -- final output location
+    output_folder -- final output location relative to archive directory
     bag -- the bag being transferred, which provides most of the metadata
     primary_id -- the collection identifier or preliminary identifier for the material
     manifest_hash -- a checksum value for a specific manifest file for deduplication
