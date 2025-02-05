@@ -346,7 +346,7 @@ def test_get_hash_algorithms(input, expected):
 
 def test_validate_bag_at_fake_path():
     uuid, errors = validate_bag_at("path")
-    assert errors.startswith("Expected bagit.txt does not exist")
+    assert errors[0].startswith("Expected bagit.txt does not exist")
 
 
 def test_validate_bag_at_uuid(existing_bag):
@@ -358,7 +358,7 @@ def test_validate_bag_at_no_uuid(existing_bag):
     existing_bag.info[UUID_ID] = [None]
     existing_bag.save()
     result = validate_bag_at(existing_bag.path)
-    assert result == (None, "Bag UUID not present in bag-info.txt")
+    assert result == ([], ["Bag UUID not present in bag-info.txt"])
 
 
 def test_validate_bag_at_two_uuids(existing_bag):
@@ -366,22 +366,24 @@ def test_validate_bag_at_two_uuids(existing_bag):
     existing_bag.save()
     result = validate_bag_at(existing_bag.path)
     assert result == (
-        None,
-        f"Too many UUIDs parsed from bag: {';'.join([SET_UUID_1,SET_UUID_2])}",
+        [SET_UUID_1, SET_UUID_2],
+        [f"Too many UUIDs parsed from bag: {';'.join([SET_UUID_1,SET_UUID_2])}"],
     )
 
 
 def test_validate_bag_at_valid(existing_bag):
     result = validate_bag_at(existing_bag.path)
-    assert result == (SET_UUID_1, None)
+    assert result == ([SET_UUID_1], [])
 
 
 def test_validate_bag_at_no_manifest(existing_bag):
     os.remove(os.path.join(existing_bag.path, "manifest-sha256.txt"))
     result = validate_bag_at(existing_bag.path)
     assert result == (
-        SET_UUID_1,
-        "Bag validation failed: manifest-sha256.txt exists in manifest but was not found on filesystem",
+        [SET_UUID_1],
+        [
+            "Bag validation failed: manifest-sha256.txt exists in manifest but was not found on filesystem"
+        ],
     )
 
 
@@ -389,7 +391,9 @@ def test_validate_bag_at_no_baginfo(existing_bag):
     os.remove(os.path.join(existing_bag.path, "bag-info.txt"))
     result = validate_bag_at(existing_bag.path)
     assert result == (
-        None,
-        "Bag UUID not present in bag-info.txt;"
-        + "Bag validation failed: bag-info.txt exists in manifest but was not found on filesystem",
+        [],
+        [
+            "Bag UUID not present in bag-info.txt",
+            "Bag validation failed: bag-info.txt exists in manifest but was not found on filesystem",
+        ],
     )

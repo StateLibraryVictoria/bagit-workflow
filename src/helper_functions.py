@@ -592,7 +592,7 @@ def parse_uuids(list):
     return valid
 
 
-def validate_bag_at(directory) -> tuple[str, str]:
+def validate_bag_at(directory) -> tuple[list, list]:
     """Multi-step process that validates the bag and returns a tuple of UUID and errors.
 
     Keyword arguments:
@@ -606,7 +606,7 @@ def validate_bag_at(directory) -> tuple[str, str]:
         logger.error(f"Error validating bag {directory}: {e}")
         errors.append(f"{e}")
         # update database with failure
-        return (None, ";".join(errors))
+        return (bag_uuid, errors)
 
     # try getting the UUID
     try:
@@ -616,16 +616,11 @@ def validate_bag_at(directory) -> tuple[str, str]:
         else:
             bag_uuid = parse_uuids([bag_uuid])
         if len(bag_uuid) == 0:
-            bag_uuid = None
             errors.append("Bag UUID not present in bag-info.txt")
-        elif len(bag_uuid) == 1:
-            bag_uuid = bag_uuid[0]
-        else:
+        elif len(bag_uuid) > 1:
             errors.append(f"Too many UUIDs parsed from bag: {';'.join(bag_uuid)}")
-            bag_uuid = None
     except KeyError as e:
         logger.error(f"Error parsing UUID from bag {directory}: {e}")
-        bag_uuid = None
         errors.append("Bag UUID not present in bag-info.txt")
 
     # finally try validating the bag
@@ -635,10 +630,5 @@ def validate_bag_at(directory) -> tuple[str, str]:
     except bagit.BagValidationError as e:
         logger.warning(f"Error validating bag at {directory} with UUID {bag_uuid}: {e}")
         errors.append(f"{e}")
-
-    if len(errors) == 0:
-        errors = None
-    else:
-        errors = ";".join(errors)
 
     return (bag_uuid, errors)
