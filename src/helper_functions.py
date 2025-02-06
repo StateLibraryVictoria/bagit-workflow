@@ -340,10 +340,16 @@ class NewTransfer(Transfer):
 
         root, folder = os.path.split(path)
         try:  # to use Unix file properties
-            filepath = Path(root)
+            filepath = Path(path)
             return filepath.owner()
         except KeyError as e:
-            logger.warning(f"Unable to parse using Path.owner, trying subprocess...")
+            logger.error(f"KeyError: {e}")
+            stat = os.stat(path)
+            return stat.st_uid
+        except NotImplementedError as e:
+            logger.warning(
+                f"Unable to parse using Path.owner: {e} \nTrying subprocess..."
+            )
             try:  # to use the windows dir command to grab the data then parse it
                 owner_data = subprocess.run(
                     ["dir", root, "/q"],
