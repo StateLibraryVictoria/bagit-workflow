@@ -1,23 +1,9 @@
 import logging
+from src.shared_constants import *
 from src.database_functions import *
+from src.helper_functions import *
 
 logger = logging.getLogger(__name__)
-
-# metadata tags
-PRIMARY_ID = "External-Identifier"
-UUID_ID = "Internal-Sender-Identifier"
-CONTACT = "Contact-Name"
-EXTERNAL_DESCRIPTION = "External-Description"
-
-
-def load_config():
-    config = {
-        "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
-        "LOGGING_DIR": os.getenv("LOGGING_DIR"),
-        "DATABASE": os.getenv("DATABASE"),
-        "REPORT_DIR": os.getenv("REPORT_DIR"),
-    }
-    return config
 
 
 def main():
@@ -35,6 +21,8 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
+    runfile_check(logging_dir)
+
     transfer_tables = ["Collections", "Transfers"]
     validation_tables = ["ValidationActions", "ValidationOutcome"]
     html = dump_database_tables_to_html(
@@ -51,6 +39,8 @@ def main():
             f.write(html)
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
+
+    runfile_cleanup(logging_dir)
 
 
 if __name__ == "__main__":

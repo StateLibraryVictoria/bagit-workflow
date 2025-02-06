@@ -30,7 +30,7 @@ def main():
         configure_validation_db(validation_db)
     except sqlite3.OperationalError as e:
         print(f"Error configuring database: {e}")
-        runflie_cleanup(logging_dir)
+        runfile_cleanup(logging_dir)
 
     # get list of transfers
     collections = os.listdir(archive_dir)
@@ -177,7 +177,7 @@ def main():
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
-    runflie_cleanup(logging_dir)
+    runfile_cleanup(logging_dir)
 
 
 if __name__ == "__main__":

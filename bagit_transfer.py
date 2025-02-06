@@ -31,7 +31,7 @@ def main():
     for dir in [transfer_dir, archive_dir]:
         if not os.path.exists(dir):
             logger.error(f"Directory: {dir} does not exist.")
-            runflie_cleanup(transfer_dir)
+            runfile_cleanup(transfer_dir)
 
     # Get the .ok files at the transfer directory
     at_transfer = os.listdir(transfer_dir)
@@ -39,7 +39,7 @@ def main():
 
     if len(ok_files) == 0:
         logger.info("No trigger files staged in transfer directory.")
-        runflie_cleanup(transfer_dir)
+        runfile_cleanup(transfer_dir)
     else:
         id_parser = load_id_parser()
         logger.info(f"Transfers to process: {len(ok_files)}")
@@ -166,7 +166,7 @@ def main():
                 tf.set_error(
                     f"Error moving bag to preservation directory: metadata could not be generated or read."
                 )
-    runflie_cleanup(transfer_dir)
+    runfile_cleanup(transfer_dir)
 
 
 if __name__ == "__main__":
