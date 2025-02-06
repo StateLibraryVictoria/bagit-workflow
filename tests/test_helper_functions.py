@@ -351,7 +351,7 @@ def test_validate_bag_at_fake_path():
 
 def test_validate_bag_at_uuid(existing_bag):
     uuid, errors = validate_bag_at(existing_bag.path)
-    assert uuid == SET_UUID_1
+    assert uuid == [SET_UUID_1]
 
 
 def test_validate_bag_at_no_uuid(existing_bag):

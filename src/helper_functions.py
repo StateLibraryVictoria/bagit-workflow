@@ -459,6 +459,7 @@ def robocopy_copy(
         result = subprocess.run(["robocopy", folder, output_dir, flags], check=True)
         logger.info(result.stdout)
         if result.stderr:
+            logger.error("ROBOCOPY ERROR...")
             logger.error(result.stderr)
     except subprocess.CalledProcessError as e:
         logger.error(f"robocopy failed for folder {folder} to {output_dir}")
@@ -483,6 +484,7 @@ def rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> None:
         logger.info("Retrieving stdout...")
         logger.info(result.stdout)
         if result.stderr:
+            logger.error("RSYNC ERROR...")
             logger.error(result.stderr)
     except subprocess.CalledProcessError as e:
         logger.error(f"rsync failed for folder {folder} to {output_dir}")
@@ -518,9 +520,11 @@ def load_config() -> dict:
         "TRANSFER_DIR": os.getenv("TRANSFER_DIR"),
         "ARCHIVE_DIR": os.getenv("ARCHIVE_DIR"),
         "LOGGING_DIR": os.getenv("LOGGING_DIR"),
+        "VALIDATION_DB": os.getenv("VALIDATION_DB"),
         "DATABASE": os.getenv("DATABASE"),
         "HASH_ALGORITHMS": os.getenv("HASH_ALGORITHMS"),
         "SOURCE_ORG": os.getenv("SOURCE_ORG"),
+        "REPORT_DIR": os.getenv("REPORT_DIR"),
     }
     return config
 
@@ -571,7 +575,7 @@ def runfile_check(directory):
             logger.debug(f"Creating runfile: {runfile}")
 
 
-def runflie_cleanup(directory):
+def runfile_cleanup(directory):
     runfile = os.path.join(directory, RUNNING)
 
     os.remove(runfile)
@@ -585,7 +589,6 @@ def parse_uuids(list):
         try:
             uuid.UUID(id)
             valid.append(id)
-            logger.error(valid)
         except Exception as e:
             logger.error(f"Error parsing id {e}")
             continue
