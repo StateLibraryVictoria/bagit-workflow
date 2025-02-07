@@ -58,67 +58,42 @@ def main():
             # build the path
             transfer_dir = os.path.join(col_dir, transfer)
 
-            # check it's not a file
-            if not os.path.isdir(transfer_dir):
-                continue
-
             # start tracking validation time
             validation_start_time = datetime.now()
 
-            bag_path = transfer_dir
-
             # run the validation process
-            baguuid, errors = validate_bag_at(bag_path)
-            baguuid = ";".join(baguuid)
+            try:
+                validation_status = ValidationStatus(
+                    transfer_db, "transfers", transfer_dir, archive_dir
+                )
+            except ValueError as e:
+                logger.error(f"ValueError: {e}")
+                continue
 
-            relative_path = os.path.join(collection, transfer)
-
-            # check the transfers database
-            with get_db_connection(transfer_db) as tbd:
-                cur = tbd.cursor()
-                try:
-                    result = cur.execute(
-                        "SELECT TransferID, BagUUID from transfers WHERE OutcomeFolderTitle=?",
-                        [relative_path],
-                    )
-                    matches = result.fetchall()
-                    if len(matches) == 0:
-                        logger.error(
-                            f"Bag path incorrectly recorded in database 0 matched records."
-                        )
-                        errors.append("Bag path not found in transfers database.")
-                    elif len(matches) == 1:
-                        db_uuid = matches[0][1]
-                        if baguuid != db_uuid:
-                            errors.append(
-                                f"UUID conflict in database for transfer {matches[0][0]} with UUID {db_uuid}"
-                            )
-                    else:
-                        transfers = [", ".join(match) for match in matches]
-                        errors.append(
-                            f"Too many transfers in database: {'; '.join(transfers)}"
-                        )
-                    db_paths_checked.add(relative_path)
-                except Exception as e:
-                    logger.error(f"Error connecting to transfers database: {e}")
+            # assign set variables from validation
+            bag_uuid = validation_status.get_bag_uuid()
+            errors = validation_status.get_error_string()
+            outcome = validation_status.is_valid()
 
             # now the validation process is done
             validation_end_time = datetime.now()
 
-            # ValidationActionId, BagUUID, Outcome, Errors, BagPath, StartTime, EndTime
             # update both tables to reflect bag validation outcome.
-
-            errors = ";".join(errors)
             insert_validation_outcome(
                 validation_action_id,
-                baguuid,
-                len(errors) == 0,
+                bag_uuid,
+                outcome,
                 errors,
-                bag_path,
+                transfer_dir,
                 validation_start_time,
                 validation_end_time,
                 validation_db,
             )
+
+            # log directory as checked
+            relative_path = validation_status.get_relative_path()
+            logger.info(f"Checked transfer at {relative_path} with outcome {outcome}")
+            db_paths_checked.add(relative_path)
 
     # find any transfers in the database that weren't on the filesystem
     # add a row and validation error for each
