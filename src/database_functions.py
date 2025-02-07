@@ -4,6 +4,83 @@ import time
 import pandas as pd
 from contextlib import contextmanager
 from src.shared_constants import *
+from src.helper_functions import validate_bag_at
+
+
+class ValidationStatus:
+    def __init__(self, db_path, table_name, transfer_path, archive_dir):
+        self.db_path = db_path
+        self.table_name = table_name
+        self.transfer_path = transfer_path
+        self.archive_dir = archive_dir
+        self.bag_uuid = None
+        self.errors = []
+        self.valid = self._validate()
+
+    def get_relative_path(self):
+        relative_path = os.path.relpath(self.transfer_path, self.archive_dir)
+        return relative_path
+
+    def get_error_string(self) -> str:
+        return ";".join(self.errors)
+
+    def get_bag_uuid(self) -> str:
+        return self.bag_uuid
+
+    def is_valid(self):
+        return self.valid
+
+    def _validate(self) -> bool:
+        if not os.path.isdir(self.transfer_path):
+            raise ValueError("Transfer path must be a directory.")
+
+        self._validate_as_bag()
+        self._validate_in_database()
+        if len(self.errors) == 0:
+            return True
+        else:
+            return False
+
+    def _validate_as_bag(self) -> None:
+        baguuid, errors = validate_bag_at(self.transfer_path)
+        baguuid = ";".join(baguuid)
+        if self.bag_uuid is None:
+            self.bag_uuid = baguuid
+        else:
+            if self.bag_uuid != baguuid:
+                errors.append(
+                    f"Bag UUID already parsed and different from current: {baguuid} verses {self.bag_uuid}"
+                )
+        self.errors.extend(errors)
+
+    def _validate_in_database(self) -> None:
+        relative_path = self.get_relative_path()
+        with get_db_connection(self.db_path) as tbd:
+            cur = tbd.cursor()
+            try:
+                result = cur.execute(
+                    "SELECT TransferID, BagUUID from transfers WHERE OutcomeFolderTitle=?",
+                    [relative_path],
+                )
+                matches = result.fetchall()
+                if len(matches) == 0:
+                    logger.error(
+                        f"Bag path incorrectly recorded in database 0 matched records."
+                    )
+                    self.errors.append("Bag path not found in transfers database.")
+                elif len(matches) == 1:
+                    db_uuid = matches[0][1]
+                    if self.bag_uuid != db_uuid:
+                        self.errors.append(
+                            f"UUID conflict in database for transfer {matches[0][0]} with UUID {db_uuid}"
+                        )
+                else:
+                    transfers = [", ".join(match) for match in matches]
+                    self.errors.append(
+                        f"Too many transfers in database: {'; '.join(transfers)}"
+                    )
+            except Exception as e:
+                logger.error(f"Error connecting to transfers database: {e}")
 
 
 def get_count_collections_processed(primary_id, db_path):
