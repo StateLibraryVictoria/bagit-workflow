@@ -2,10 +2,14 @@ from src.database_functions import *
 from src.helper_functions import compute_manifest_hash
 import pytest
 
+SET_UUID_ID = "ce2c5343-0f5c-45e1-9cd1-5e10e748efef"
+TRANSFERS = "transfers"  # table name
+BAG_DIR = "test_bag"
+
 
 @pytest.fixture
 def existing_bag(tmp_path):
-    dir = tmp_path / "test_bag"
+    dir = tmp_path / BAG_DIR
     dir.mkdir()
     file = dir / "file.txt"
     with open(file, "w") as f:
@@ -17,7 +21,7 @@ def existing_bag(tmp_path):
             "Contact-Name": "Name",
             "External-Description": "A test metadata package for a valid transfer.",
             "External-Identifier": "RA-9999-99",
-            "Internal-Sender-Identifier": "ce2c5343-0f5c-45e1-9cd1-5e10e748efef",
+            "Internal-Sender-Identifier": SET_UUID_ID,
         },
     )
     yield bag
@@ -28,6 +32,25 @@ def database_path(tmp_path):
     dir = tmp_path / "database"
     dir.mkdir()
     database = dir / "database.db"
+    yield database
+
+
+@pytest.fixture()
+def transfers_db_with_entry(tmp_path, existing_bag):
+    dir = tmp_path / "database"
+    dir.mkdir()
+    database = dir / "transfer.db"
+    configure_transfer_db(database)
+    hash = compute_manifest_hash(str(existing_bag))
+    insert_transfer(
+        BAG_DIR,
+        existing_bag,
+        "RA-9999-99",
+        hash,
+        datetime.now(),
+        datetime.now(),
+        database,
+    )
     yield database
 
 
@@ -45,6 +68,80 @@ def configured_validation_db_started(validation_db):
     time = "now"
     validation_action_id = start_validation(time, validation_db)
     yield (validation_db, validation_action_id)
+
+
+# test Transfer class
+def test_init_ValidationStatus_valid(transfers_db_with_entry, existing_bag, tmp_path):
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+    )
+    print(validation_status.get_relative_path())
+    outcome = validation_status.is_valid()
+    assert outcome == True
+
+
+def test_no_db_match_ValidationStatus_errors(
+    transfers_db_with_entry, existing_bag, tmp_path
+):
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), BAG_DIR
+    )
+    errors = validation_status.get_error_string()
+    assert errors == "Bag path not found in transfers database."
+
+
+def test_no_db_match_ValidationStatus_outcome(
+    transfers_db_with_entry, existing_bag, tmp_path
+):
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), BAG_DIR
+    )
+    outcome = validation_status.is_valid()
+    assert outcome == False
+
+
+def test_no_uuid_ValidatioNStatus_outcome(
+    transfers_db_with_entry, existing_bag, tmp_path
+):
+    existing_bag.info[UUID_ID] = [None]
+    existing_bag.save()
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+    )
+    outcome = validation_status.is_valid()
+    assert outcome == False
+
+
+def test_no_uuid_ValidatioNStatus_errors(
+    transfers_db_with_entry, existing_bag, tmp_path
+):
+    existing_bag.info[UUID_ID] = [None]
+    existing_bag.save()
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+    )
+    errors = validation_status.get_error_string()
+    assert (
+        errors
+        == f"Bag UUID not present in bag-info.txt;UUID conflict in database for transfer 1 with UUID {SET_UUID_ID}"
+    )
+
+
+def test_invalid_bag_ValidationStatus(transfers_db_with_entry, existing_bag, tmp_path):
+    os.remove(os.path.join(str(existing_bag), "bag-info.txt"))
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+    )
+    outcome = validation_status.is_valid()
+    assert outcome == False
+
+
+def test_ValidationStatus_get_uuid(transfers_db_with_entry, existing_bag, tmp_path):
+    validation_status = ValidationStatus(
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+    )
+    outcome = validation_status.get_bag_uuid()
+    assert outcome == SET_UUID_ID
 
 
 # test_configure_transfer_db
