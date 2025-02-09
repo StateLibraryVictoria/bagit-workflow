@@ -42,6 +42,10 @@ class TriggerFile:
         otherwise processes as a NewTransfer.
         """
         bag_info = os.path.join(self.name, "bag-info.txt")
+
+        if not os.path.exists(self.name):
+            return None
+
         if os.path.isfile(bag_info):
             logging.info(
                 "Existing bag identified. Will use bag metadata. Delete bag-info.txt to run a bag with supplied metadata."
