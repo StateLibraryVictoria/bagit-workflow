@@ -52,6 +52,7 @@ class ValidationReport(ReportType):
             validation_db,
             query,
         )
+        query = query.replace("ValidationActions ", "ValidationOutcome ")
         html_outcome = return_db_query_as_html(
             validation_db,
             query,
