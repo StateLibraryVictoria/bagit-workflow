@@ -90,6 +90,11 @@ class TriggerFile:
         elif not len(os.listdir(self.name)) > 0:
             errors.append("Folder is empty.")
         if not self._check_metadata():
+            collection_id = self.metadata.get(PRIMARY_ID)
+            if collection_id == None:
+                errors.append(
+                    "Collection identifier could not be parsed from folder title."
+                )
             errors.append("Error parsing metadata.")
         if len(errors) == 0:
             logger.info(f"Transfer verified: {self.name}")
@@ -103,7 +108,6 @@ class TriggerFile:
                 with open(self.filename, "a") as f:
                     for error in errors:
                         f.write(error + "\n")
-                    # get logfilename
                     f.write("See logfile for more information.")
             except PermissionError as e:
                 logger.error(f"Error writing to file: {e}")
