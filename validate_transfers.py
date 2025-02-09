@@ -101,6 +101,7 @@ def main():
     with get_db_connection(transfer_db) as tbd:
         cur = tbd.cursor()
         params = ["? " for i in range(len(db_paths_checked))]
+        query_time = datetime.now()
         select_statement = (
             "SELECT TransferID, BagUUID, OutcomeFolderTitle, OriginalFolderTitle, TransferDate, ContactName "
             + f"from transfers WHERE OutcomeFolderTitle not in ({','.join(params)})"
@@ -118,8 +119,8 @@ def main():
                         False,
                         f"Transfer {match[0]} in database but not found on system. Submitted on {match[4]} by {match[5]} in folder {match[3]}.",
                         match[2],
-                        datetime.now(),
-                        datetime.now(),
+                        query_time,
+                        query_time,
                         validation_db,
                     )
         except Exception as e:
