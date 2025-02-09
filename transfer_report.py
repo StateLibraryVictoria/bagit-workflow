@@ -2,6 +2,7 @@ import logging
 from src.shared_constants import *
 from src.database_functions import *
 from src.helper_functions import *
+from src.report_functions import *
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,9 @@ def main():
 
     runfile_check(logging_dir)
 
-    transfer_tables = ["Collections", "Transfers"]
-    validation_tables = ["ValidationActions", "ValidationOutcome"]
-    html = dump_database_tables_to_html(
-        title="Transfer Report",
-        db_paths={"transfer": transfer_db, "validation": None},
-        db_tables={"transfer": transfer_tables, "validation": validation_tables},
-    )
+    report_builder = Report(TransferReport())
+
+    html = report_builder.build_basic_report(transfer_db)
 
     report_file = os.path.join(
         report_dir, f"transfer_report_{time.strftime('%Y%m%d')}.html"

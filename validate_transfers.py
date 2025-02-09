@@ -3,6 +3,7 @@ import os
 import sqlite3
 from src.helper_functions import *
 from src.database_functions import *
+from src.report_functions import *
 
 logger = logging.getLogger(__name__)
 
@@ -128,27 +129,14 @@ def main():
     end_validation(validation_action_id, validation_action_end, validation_db)
 
     # build a basic report and output to html.
+    report = Report(ValidationReport())
     report_date = time.strftime("%Y%m%d")
-    html_start = html_header("Validation Report")
-    html_action = return_db_query_as_html(
-        validation_db,
-        f"SELECT * from ValidationActions WHERE ValidationActionsId={validation_action_id}",
-    )
-    html_outcome = return_db_query_as_html(
-        validation_db,
-        f"SELECT * from ValidationOutcome WHERE ValidationActionsId={validation_action_id}",
-    )
+    html = report.build_basic_report(validation_db, validation_action_id)
 
     report_file = os.path.join(report_dir, f"validation_report_{report_date}.html")
     try:
         with open(report_file, "a") as f:
-            f.write(html_start)
-            f.write("<body>")
-            f.write("<h2>Report Overview</h2>")
-            f.write(html_action)
-            f.write("<h2>Validation Outcomes</h2>")
-            f.write(html_outcome)
-            f.write("</body></html>")
+            f.write(html)
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
