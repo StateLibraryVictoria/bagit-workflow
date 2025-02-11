@@ -196,9 +196,18 @@ class TriggerFile:
         return bag
 
     def cleanup_transfer(self) -> None:
-        """Remove trigger file and directory. Won't work on collections with an error status."""
+        """Remove trigger file and directory. Won't work on collections with an error status.
+
+        If appraisal directory is specified in .env, will move the remaining data to that location.
+        """
         if not self.status == ".error":
-            shutil.rmtree(self.name)
+            appraisal_dir = get_appraisal_dir()
+            if appraisal_dir is not None:
+                logger.info("Moving processed bag to appraisal directory.")
+                shutil.move(self.name, appraisal_dir)
+            else:
+                logger.warning("No appraisal directory configured. Removing files.")
+                shutil.rmtree(self.name)
             if os.path.isfile(self.filename):
                 os.remove(self.filename)
 
@@ -539,11 +548,16 @@ def load_config() -> dict:
         "HASH_ALGORITHMS": os.getenv("HASH_ALGORITHMS"),
         "SOURCE_ORG": os.getenv("SOURCE_ORG"),
         "REPORT_DIR": os.getenv("REPORT_DIR"),
+        "APPRAISAL_DIR": os.getenv("APPRAISAL_DIR"),
     }
     return config
 
 
 config = load_config()
+
+
+def get_appraisal_dir() -> str:
+    return config.get("APPRAISAL_DIR")
 
 
 def get_source_org() -> str:
