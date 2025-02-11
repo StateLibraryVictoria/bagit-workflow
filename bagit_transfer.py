@@ -13,6 +13,7 @@ def main():
     logging_dir = config.get("LOGGING_DIR")
     transfer_dir = config.get("TRANSFER_DIR")
     archive_dir = config.get("ARCHIVE_DIR")
+    appraisal_dir = get_appraisal_dir()
     database = config.get("DATABASE")
 
     runfile_check(transfer_dir)
@@ -28,7 +29,7 @@ def main():
     )
 
     # check that directories are connected.
-    for dir in [transfer_dir, archive_dir]:
+    for dir in [transfer_dir, archive_dir, appraisal_dir]:
         if not os.path.exists(dir):
             logger.error(f"Directory: {dir} does not exist.")
             runfile_cleanup(transfer_dir)
