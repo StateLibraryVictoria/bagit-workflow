@@ -1,5 +1,6 @@
 from src.helper_functions import *
 import pytest
+import unicodedata
 
 ## Test TriggerFile
 
@@ -102,6 +103,31 @@ def existing_bag(tmp_path):
             "External-Description": "A test metadata package for a valid transfer.",
             "External-Identifier": "RA-9999-99",
             "Internal-Sender-Identifier": SET_UUID_1,
+        },
+    )
+    yield bag
+
+
+@pytest.fixture
+def unicode_bag(tmp_path):
+    dir = tmp_path / "test_bag"
+    dir.mkdir()
+    nfc_filename = unicodedata.normalize("NFC", "âââââ.txt")
+    nfd_filename = unicodedata.normalize("NFD", "âââââ.txt")
+    file_a = dir / nfc_filename
+    file_b = dir / nfd_filename
+    with open(file_a, "w") as f:
+        f.write("Text in file a.")
+    with open(file_b, "w") as f:
+        f.write("Text in file b.")
+    bag = bagit.make_bag(
+        dir,
+        {
+            "Source-Organization": "Home",
+            "Contact-Name": "Name",
+            "External-Description": "A test metadata package for a valid transfer.",
+            "External-Identifier": "RA-9999-99",
+            "Internal-Sender-Identifier": SET_UUID_2,
         },
     )
     yield bag
@@ -397,3 +423,16 @@ def test_validate_bag_at_no_baginfo(existing_bag):
             "Bag validation failed: bag-info.txt exists in manifest but was not found on filesystem",
         ],
     )
+
+
+def test_transfer_unicode_normalisation_bag(unicode_bag, tmp_path):
+    """Test that bags with files different by normalisation only
+    are still valid"""
+    archive_dir = tmp_path / "output"
+    archive_dir.mkdir()
+    process_transfer(str(unicode_bag), archive_dir)
+    bag_path = os.path.normpath(archive_dir)
+    bag = bagit.Bag(bag_path)
+    valid = bag.is_valid()
+    dir_list = os.listdir(os.path.join(bag_path, "data"))
+    assert (valid == True) and (len(dir_list) == 2)
