@@ -147,7 +147,7 @@ def main():
                             datetime.now(),
                             database,
                         )
-                        tf.cleanup_transfer()
+                        tf.cleanup_transfer(appraisal_dir)
                     except Exception as e:
                         logger.error(
                             f"Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
