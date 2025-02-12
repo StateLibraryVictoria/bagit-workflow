@@ -19,11 +19,14 @@ def mock_config(stable_path, monkeypatch):
     for dir in dirs:
         os.mkdir(dir)
     database = os.path.join(database, "database.db")
-    monkeypatch.setenv("LOGGING_DIR", logging_dir)
-    monkeypatch.setenv("DATABASE", database)
-    monkeypatch.setenv("ARCHIVE_DIR", archive)
-    monkeypatch.setenv("TRANSFER_DIR", transfer)
-    monkeypatch.setenv("APPRAISAL_DIR", appraisal)
+    config = {
+        "LOGGING_DIR": str(logging_dir),
+        "DATABASE": str(database),
+        "ARCHIVE_DIR": str(archive),
+        "TRANSFER_DIR": str(transfer),
+        "APPRAISAL_DIR": str(appraisal),
+    }
+    return config
 
 
 SET_UUID_1 = "ce2c5343-0f5c-45e1-9cd1-5e10e748efef"
@@ -50,23 +53,36 @@ def existing_bag(stable_path):
     yield bag
 
 
-def test_should_exit_if_no_dir(mock_config, monkeypatch):
-    monkeypatch.setitem(config, "ARCHIVE_DIR", None)
+def test_should_exit_if_no_dir():
     with pytest.raises(SystemExit):
         main()
 
 
-def test_successful_run_bag(stable_path, existing_bag, mock_config):
-    transfer_dir = stable_path / "transfer"
-    archive_dir = stable_path / "archive"
+def test_successful_run_bag(stable_path, existing_bag, mock_config, monkeypatch):
+    # set up the paths and stage bag
+    transfer_dir = mock_config.get("TRANSFER_DIR")
+    archive_dir = mock_config.get("ARCHIVE_DIR")
+    appraisal_dir = mock_config.get("APPRAISAL_DIR")
     shutil.move(str(existing_bag), transfer_dir)
-    ok_file = transfer_dir / "test_bag.ok"
-    ok_file.write_text("")
-    data = os.listdir(transfer_dir)
-    print(data)
+    ok_file = os.path.join(transfer_dir, "test_bag.ok")
+    with open(ok_file, "w") as f:
+        f.write("")
+
+    # replace config with mock
+    monkeypatch.setattr("bagit_transfer.load_config", lambda: mock_config)
     with pytest.raises(SystemExit):
         main()
-    data = os.listdir(archive_dir)
+
+    # files we expect
     outcome = os.path.join(archive_dir, "RA-9999-99", "t1", "bag-info.txt")
-    print(data)
-    assert os.path.exists(outcome)
+    db = os.path.join(stable_path, "database", "database.db")
+    # transfer should be empty
+    in_transfer = os.listdir(transfer_dir)
+    # appraisal should have the original folder
+    in_appraisal = os.path.join(appraisal_dir, "test_bag")
+    assert (
+        os.path.exists(outcome)
+        and os.path.exists(db)
+        and len(in_transfer) == 0
+        and os.path.exists(in_appraisal)
+    )
