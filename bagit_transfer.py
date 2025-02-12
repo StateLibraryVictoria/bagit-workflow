@@ -1,5 +1,6 @@
 from src.helper_functions import *
 from src.database_functions import *
+import sys
 import bagit
 import time
 import sqlite3
@@ -13,8 +14,12 @@ def main():
     logging_dir = config.get("LOGGING_DIR")
     transfer_dir = config.get("TRANSFER_DIR")
     archive_dir = config.get("ARCHIVE_DIR")
-    appraisal_dir = get_appraisal_dir()
+    appraisal_dir = config.get("APPRAISAL_DIR")
     database = config.get("DATABASE")
+
+    for variable in [logging_dir, transfer_dir, archive_dir, appraisal_dir, database]:
+        if variable == None:
+            sys.exit()
 
     runfile_check(transfer_dir)
 
