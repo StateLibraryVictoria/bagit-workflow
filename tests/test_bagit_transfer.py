@@ -9,7 +9,7 @@ def stable_path(tmp_path):
 
 
 @pytest.fixture
-def mock_config(stable_path, monkeypatch):
+def mock_config(stable_path):
     logging_dir = stable_path / "logging"
     transfer = stable_path / "transfer"
     archive = stable_path / "archive"
