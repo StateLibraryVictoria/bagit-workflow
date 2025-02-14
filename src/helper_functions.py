@@ -498,8 +498,10 @@ def robocopy_copy(
     folder: str, output_dir: str, flags: str = "/e /z /copy:DAT /dcopy:DAT /v"
 ) -> None:
     try:
-        result = subprocess.run(["robocopy", folder, output_dir, flags], check=True)
-        logger.info(result.stdout)
+        flags = flags.split(" ")
+        command = ["robocopy", folder, output_dir]
+        command.extend(flags)
+        result = subprocess.run(command, check=True)
         if result.stderr:
             logger.error("ROBOCOPY ERROR...")
             logger.error(result.stderr)
