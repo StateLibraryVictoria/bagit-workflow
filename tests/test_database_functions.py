@@ -1,6 +1,7 @@
 from src.database_functions import *
 from src.helper_functions import compute_manifest_hash
 import pytest
+import shutil
 
 SET_UUID_ID = "ce2c5343-0f5c-45e1-9cd1-5e10e748efef"
 TRANSFERS = "transfers"  # table name
@@ -8,8 +9,33 @@ BAG_DIR = "test_bag"
 
 
 @pytest.fixture
-def existing_bag(tmp_path):
-    dir = tmp_path / BAG_DIR
+def stable_path(tmp_path):
+    return tmp_path
+
+@pytest.fixture
+def mock_config(stable_path):
+    logging_dir = stable_path / "logging"
+    transfer = stable_path / "transfer"
+    archive = stable_path / "archive"
+    appraisal = stable_path / "appraisal"
+    database = stable_path / "database"
+    dirs = [logging_dir, transfer, archive, appraisal, database]
+    for dir in dirs:
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+    database = os.path.join(database, "database.db")
+    config = {
+        "LOGGING_DIR": str(logging_dir),
+        "DATABASE": str(database),
+        "ARCHIVE_DIR": str(archive),
+        "TRANSFER_DIR": str(transfer),
+        "APPRAISAL_DIR": str(appraisal),
+    }
+    return config
+
+@pytest.fixture
+def existing_bag(stable_path):
+    dir = stable_path / BAG_DIR
     dir.mkdir()
     file = dir / "file.txt"
     with open(file, "w") as f:
@@ -28,16 +54,16 @@ def existing_bag(tmp_path):
 
 
 @pytest.fixture(scope="function")
-def database_path(tmp_path):
-    dir = tmp_path / "database"
+def database_path(stable_path):
+    dir = stable_path / "database"
     dir.mkdir()
     database = dir / "database.db"
     yield database
 
 
 @pytest.fixture()
-def transfers_db_with_entry(tmp_path, existing_bag):
-    dir = tmp_path / "database"
+def transfers_db_with_entry(stable_path, existing_bag):
+    dir = stable_path / "database"
     dir.mkdir()
     database = dir / "transfer.db"
     configure_transfer_db(database)
@@ -55,8 +81,8 @@ def transfers_db_with_entry(tmp_path, existing_bag):
 
 
 @pytest.fixture()
-def validation_db(tmp_path):
-    dir = tmp_path / "validation_db"
+def validation_db(stable_path):
+    dir = stable_path / "validation_db"
     dir.mkdir()
     database = dir / "database.db"
     yield database
@@ -81,44 +107,48 @@ def test_init_ValidationStatus_valid(transfers_db_with_entry, existing_bag, tmp_
 
 
 def test_no_db_match_ValidationStatus_errors(
-    transfers_db_with_entry, existing_bag, tmp_path
+    transfers_db_with_entry, existing_bag, stable_path
 ):
+    new_location = os.path.join(stable_path, "new_dir")
+    shutil.move(str(existing_bag), new_location)
     validation_status = ValidationStatus(
-        transfers_db_with_entry, TRANSFERS, str(existing_bag), BAG_DIR
+        transfers_db_with_entry, TRANSFERS, new_location, stable_path
     )
     errors = validation_status.get_error_string()
     assert errors == "Bag path not found in transfers database."
 
 
 def test_no_db_match_ValidationStatus_outcome(
-    transfers_db_with_entry, existing_bag, tmp_path
+    transfers_db_with_entry, existing_bag, stable_path
 ):
+    new_location = os.path.join(stable_path, "new_dir")
+    shutil.move(str(existing_bag), new_location)
     validation_status = ValidationStatus(
-        transfers_db_with_entry, TRANSFERS, str(existing_bag), BAG_DIR
+        transfers_db_with_entry, TRANSFERS, new_location, stable_path
     )
     outcome = validation_status.is_valid()
     assert outcome == False
 
 
 def test_no_uuid_ValidatioNStatus_outcome(
-    transfers_db_with_entry, existing_bag, tmp_path
+    transfers_db_with_entry, existing_bag, stable_path
 ):
     existing_bag.info[UUID_ID] = [None]
     existing_bag.save()
     validation_status = ValidationStatus(
-        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), stable_path
     )
     outcome = validation_status.is_valid()
     assert outcome == False
 
 
 def test_no_uuid_ValidatioNStatus_errors(
-    transfers_db_with_entry, existing_bag, tmp_path
+    transfers_db_with_entry, existing_bag, stable_path
 ):
     existing_bag.info[UUID_ID] = [None]
     existing_bag.save()
     validation_status = ValidationStatus(
-        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), stable_path
     )
     errors = validation_status.get_error_string()
     assert (
@@ -127,18 +157,18 @@ def test_no_uuid_ValidatioNStatus_errors(
     )
 
 
-def test_invalid_bag_ValidationStatus(transfers_db_with_entry, existing_bag, tmp_path):
+def test_invalid_bag_ValidationStatus(transfers_db_with_entry, existing_bag, stable_path):
     os.remove(os.path.join(str(existing_bag), "bag-info.txt"))
     validation_status = ValidationStatus(
-        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), stable_path
     )
     outcome = validation_status.is_valid()
     assert outcome == False
 
 
-def test_ValidationStatus_get_uuid(transfers_db_with_entry, existing_bag, tmp_path):
+def test_ValidationStatus_get_uuid(transfers_db_with_entry, existing_bag, stable_path):
     validation_status = ValidationStatus(
-        transfers_db_with_entry, TRANSFERS, str(existing_bag), tmp_path
+        transfers_db_with_entry, TRANSFERS, str(existing_bag), stable_path
     )
     outcome = validation_status.get_bag_uuid()
     assert outcome == SET_UUID_ID
