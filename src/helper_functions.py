@@ -501,7 +501,9 @@ def robocopy_copy(
         flags = flags.split(" ")
         command = ["robocopy", folder, output_dir]
         command.extend(flags)
-        result = subprocess.run(command, check=True)
+        result = subprocess.run(command, capture_output=True)
+        logger.info("Retrieving stdout...")
+        logger.info(result.stdout)
         if result.stderr:
             logger.error("ROBOCOPY ERROR...")
             logger.error(result.stderr)
@@ -523,7 +525,7 @@ def rsync_copy(folder: str, output_dir: str, flags: str = "-vrlt") -> None:
     # may need to add bandwidth limit --bwlimit=1000
     try:
         result = subprocess.run(
-            ["rsync", flags, "--checksum", f"{folder}/", output_dir], check=True
+            ["rsync", flags, "--checksum", f"{folder}/", output_dir], check=True, capture_output=True
         )
         logger.info("Retrieving stdout...")
         logger.info(result.stdout)
