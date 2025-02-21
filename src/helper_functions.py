@@ -507,6 +507,10 @@ def robocopy_copy(
         if result.stderr:
             logger.error("ROBOCOPY ERROR...")
             logger.error(result.stderr)
+        elif result.returncode > 1:
+            # catch any weird copy status that shouldn't happen
+            # an exit code of 1 means all fine in robocopy
+            logger.warning(f"Robocopy returncode: {result.returncode}")
     except subprocess.CalledProcessError as e:
         logger.error(f"robocopy failed for folder {folder} to {output_dir}")
         logger.error(f"Error: {e}")
