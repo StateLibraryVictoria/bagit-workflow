@@ -66,7 +66,7 @@ class TransferReport(ReportType):
     Generates transfer reports
     """
 
-    def build_basic_report(self, transfer_db, id=None):
+    def build_basic_report(self, transfer_db, id=None) -> str:
         html_start = html_header("Transfer Report")
         html_body = "<body>"
         with get_db_connection(transfer_db) as con:
