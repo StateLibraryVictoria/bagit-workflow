@@ -495,15 +495,13 @@ def process_transfer(
 
 
 def robocopy_copy(
-    folder: str, output_dir: str, flags: str = "/e /z /copy:DAT /dcopy:DAT /v"
+    folder: str, output_dir: str, flags: str = "/e /z /copy:DAT /dcopy:DAT"
 ) -> None:
     try:
         flags = flags.split(" ")
         command = ["robocopy", folder, output_dir]
         command.extend(flags)
         result = subprocess.run(command, capture_output=True)
-        logger.info("Retrieving stdout...")
-        logger.info(result.stdout)
         if result.stderr:
             logger.error("ROBOCOPY ERROR...")
             logger.error(result.stderr)
@@ -511,6 +509,8 @@ def robocopy_copy(
             # catch any weird copy status that shouldn't happen
             # an exit code of 1 means all fine in robocopy
             logger.warning(f"Robocopy returncode: {result.returncode}")
+            logger.info("Retrieving stdout...")
+            logger.info(result.stdout)
     except subprocess.CalledProcessError as e:
         logger.error(f"robocopy failed for folder {folder} to {output_dir}")
         logger.error(f"Error: {e}")
