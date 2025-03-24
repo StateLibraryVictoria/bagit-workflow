@@ -40,5 +40,7 @@ IDENTIFIER_REGEX = (
     f"(POL{sep}\\d{{3,}}{final})|"
     # H numbers
     f"(H\\d\\d)(\\d\\d)?({sep}\\d+){final}"
+    # COMY numbers
+    f"(COMY\\d{{5}}){final}"
 )
-VALIDATION_REGEX = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+"
+VALIDATION_REGEX = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+|COMY\d{5}"
