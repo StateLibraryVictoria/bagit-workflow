@@ -231,7 +231,7 @@ def test_not_ok_file_raises_exception(tmp_path, id_parser):
         ("H1988-123", True),
         ("H88-123", True),
         ("12345-slvdb", True),
-        ("COMY99999", True)
+        ("COMY99999", True),
     ],
 )
 def test_validate_id_true_for_valid(id_parser, input, expected):
@@ -257,7 +257,8 @@ def test_validate_id_true_for_valid(id_parser, input, expected):
         ("PA-9999-99", False),
         ("PO-12345-slvdb", False),
         ("PO-1234", False),
-        ("COMY9999", False)
+        ("COMY9999", False),
+        ("COMY18776",False)
     ],
 )
 def test_validate_id_false_for_invalid(id_parser, input, expected):
@@ -281,7 +282,7 @@ def test_validate_id_false_for_invalid(id_parser, input, expected):
             "12345-slvdb_23456-slvdb_34567-slvdb",
             ["12345-slvdb", "23456-slvdb", "34567-slvdb"],
         ),
-        ("A folder COMY99999", ["COMY99999"])
+        ("A folder COMY99999", ["COMY99999"]),
     ],
 )
 def test_find_id_in_folder(id_parser, input, expected):
