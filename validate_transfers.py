@@ -138,6 +138,7 @@ def main():
     try:
         with open(report_file, "a") as f:
             f.write(html)
+            print(f"Validation report written to: {report_file}")
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
