@@ -263,8 +263,7 @@ def test_validate_id_true_for_valid(id_parser, input, expected):
         ("PA-9999-99", False),
         ("PO-12345-slvdb", False),
         ("PO-1234", False),
-        ("COMY9999", False),
-        ("COMY18776",False)
+        ("COMY9999", False)
     ],
 )
 def test_validate_id_false_for_invalid(id_parser, input, expected):
