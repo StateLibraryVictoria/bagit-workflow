@@ -130,6 +130,15 @@ class TriggerFile:
             except PermissionError as e:
                 logger.error(f"Error writing to file: {e}")
             return False
+        
+    def _wait_for_file(self, path, retries=5, delay=0.5) -> bool:
+        for i in range(retries):
+            if os.path.exists(path):
+                logger.warning(f"Path resolution after {i} retries for path: {path}")
+                return True
+            time.sleep(delay)
+        logger.error(f"Failed path resolution for path: {path}")
+        return False
 
     def _set_status(self, new_status: str) -> None:
         """Set TriggerFile status to new value. This renames the file.
@@ -139,13 +148,17 @@ class TriggerFile:
         """
         new_status = new_status.replace(" ", "")
         new_name = f"{self.name}{new_status}"
-        try:
-            os.rename(self.filename, new_name)
-            logger.info(f"Renaming file to {new_status} file: {new_name}")
-            self.status = new_status
-            self.filename = new_name
-        except Exception as e:
-            logger.error(f"Failed to rename file: {self.filename} to {new_name}")
+        if self._wait_for_file(self.filename):
+            try:
+                os.rename(self.filename, new_name)
+                logger.info(f"Renaming file to {new_status} file: {new_name}")
+                self.status = new_status
+                self.filename = new_name
+            except Exception as e:
+                logger.error(f"ERROR: {e}. Failed to rename file: {self.filename} to {new_name}")
+        else:
+            logger.error(f"Cannot resolve path {self.filename}")
+            raise FileNotFoundError("Could not find trigger file in filesystem.")
 
     def _check_metadata(self) -> bool:
         """Validates minimum metadata"""
