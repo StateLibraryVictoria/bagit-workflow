@@ -213,12 +213,6 @@ def test_not_ok_file_raises_exception(tmp_path, id_parser):
     with pytest.raises(ValueError):
         tf = TriggerFile(file, id_parser)
 
-def test_triggerfile_resolution_raises(valid_trigger_file, id_parser):
-    tf = TriggerFile(valid_trigger_file, id_parser)
-    os.remove(valid_trigger_file)
-    with pytest.raises(FileNotFoundError, match="Could not find trigger file in filesystem."):
-        tf.set_error("Whoops!")
-
 
 """IdParser Tests"""
 

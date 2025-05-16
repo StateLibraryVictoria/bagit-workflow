@@ -73,12 +73,8 @@ def main():
                 try:
                     bag = tf.make_bag()
                 except Exception as e:
-                    logger.error(f"Error processing bag: {e}. See logfile for more information.")
-                    time.sleep(1)
-                    try:
-                        tf.set_error(f"Error processing bag: {e}")
-                    except FileNotFoundError as e:
-                        logger.error(f"Cannot rename trigger file.")
+                    logger.error(f"Error processing bag: {e}")
+                    tf.set_error(f"Error processing bag: {e}")
                     continue
 
                 # check if bag is valid before moving.
