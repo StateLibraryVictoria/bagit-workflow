@@ -128,6 +128,9 @@ def main():
                         )
                         tf.set_error(f"Output directory {output_dir} already exists.")
                         continue
+                else:
+                    tf.set_error(f"Bag is invalid. See logfile for more details.")
+                    continue
 
                 # copy folder to output directory
                 process_transfer(folder, output_dir)
