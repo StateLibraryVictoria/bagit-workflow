@@ -88,7 +88,11 @@ class TriggerFile:
         Keyword arguments:
         error -- Text to be written to error file.
         """
-        self._set_status(".error")
+        try:
+            self._set_status(".error")
+        except FileNotFoundError as e:
+            logger.error(f"{e}")
+            return
         try:
             with open(self.filename, "a") as f:
                 f.write(error + "\n")
@@ -121,16 +125,19 @@ class TriggerFile:
             logger.error(
                 f"Issues identified while processing {self.filename}: {' '.join(errors)}"
             )
-            self._set_status(".error")
-            try:
-                with open(self.filename, "a") as f:
-                    for error in errors:
-                        f.write(error + "\n")
-                    f.write("See logfile for more information.")
-            except PermissionError as e:
-                logger.error(f"Error writing to file: {e}")
+            errors.append("See logfile for more information.")
+            self.set_error("\n".join(errors))
             return False
-
+        
+    def _wait_for_file(self, path, retries=5, delay=0.5) -> bool:
+        for i in range(retries):
+            if os.path.exists(path):
+                logger.warning(f"Path resolution after {i} retries for path: {path}")
+                return True
+            time.sleep(delay)
+        logger.error(f"Failed path resolution for path: {path}")
+        return False
+    
     def _set_status(self, new_status: str) -> None:
         """Set TriggerFile status to new value. This renames the file.
 
@@ -139,6 +146,10 @@ class TriggerFile:
         """
         new_status = new_status.replace(" ", "")
         new_name = f"{self.name}{new_status}"
+        if not (os.path.exists(self.filename)):
+            if not self._wait_for_file(self.filename):
+                logger.error(f"Failed to resolve current filepath ({self.filename})")
+                raise FileNotFoundError(f"Could not find trigger file in filesystem. ({self.filename})")
         try:
             os.rename(self.filename, new_name)
             logger.info(f"Renaming file to {new_status} file: {new_name}")
