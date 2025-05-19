@@ -78,59 +78,61 @@ def main():
                     continue
 
                 # check if bag is valid before moving.
-                if bag.is_valid():
-                    # Primary id for filing
-                    primary_id = guess_primary_id(bag.info[PRIMARY_ID])
-
-                    # Hash manifest for dedupe
-                    manifest_hash = compute_manifest_hash(folder)
-
-                    # check the transfer is unique
-                    results = cur.execute(
-                        "SELECT * FROM transfers WHERE ManifestSHA256Hash=:id",
-                        {"id": manifest_hash},
-                    )
-                    identical_folders = results.fetchall()
-                    if len(identical_folders) > 0:
-                        logger.error(
-                            f"Manifest hash conflict: transfer with UUID {identical_folders[0][2]} and "
-                            + f"transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]} matches this transfer."
-                        )
-                        tf.set_error(
-                            f"Folder is a duplicate -- an identical transfer has been identified with UUID {identical_folders[0][2]} "
-                            + f"and transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]}."
-                        )
-                        continue
-
-                    # Get transfer index
-                    try:
-                        count = get_count_collections_processed(primary_id, database)
-                    except Exception as e:
-                        continue
-                    count += 1
-
-                    # Build output folder path
-                    output_folder = os.path.join(
-                        os.path.basename(os.path.normpath(primary_id)), f"t{count}"
-                    )
-
-                    # this is the archive directory relative location written to db
-                    output_dir = os.path.join(archive_dir, output_folder)
-
-                    # Test for existing directory
-                    logger.info("Testing to see if output folder exists.")
-                    if not os.path.exists(output_dir):
-                        logger.info(f"Making the output directory {output_dir}")
-                        os.makedirs(output_dir)
-                    else:
-                        logger.error(
-                            f"Output directory {output_dir} already exists. Skipping."
-                        )
-                        tf.set_error(f"Output directory {output_dir} already exists.")
-                        continue
-                else:
+                if not bag.is_valid():
+                    logger.error("Bag validation failed.")
                     tf.set_error(f"Bag is invalid. See logfile for more details.")
                     continue
+
+                # Primary id for filing
+                primary_id = guess_primary_id(bag.info[PRIMARY_ID])
+
+                # Hash manifest for dedupe
+                manifest_hash = compute_manifest_hash(folder)
+
+                # check the transfer is unique
+                results = cur.execute(
+                    "SELECT * FROM transfers WHERE ManifestSHA256Hash=:id",
+                    {"id": manifest_hash},
+                )
+                identical_folders = results.fetchall()
+                if len(identical_folders) > 0:
+                    logger.error(
+                        f"Manifest hash conflict: transfer with UUID {identical_folders[0][2]} and "
+                        + f"transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]} matches this transfer."
+                    )
+                    tf.set_error(
+                        f"Folder is a duplicate -- an identical transfer has been identified with UUID {identical_folders[0][2]} "
+                        + f"and transaction id {identical_folders[0][0]} and original folder title {identical_folders[0][9]}."
+                    )
+                    continue
+
+                # Get transfer index
+                try:
+                    count = get_count_collections_processed(primary_id, database)
+                except Exception as e:
+                    continue
+                count += 1
+
+                # Build output folder path
+                output_folder = os.path.join(
+                    os.path.basename(os.path.normpath(primary_id)), f"t{count}"
+                )
+
+                # this is the archive directory relative location written to db
+                output_dir = os.path.join(archive_dir, output_folder)
+
+                # Test for existing directory
+                logger.info("Testing to see if output folder exists.")
+                if not os.path.exists(output_dir):
+                    logger.info(f"Making the output directory {output_dir}")
+                    os.makedirs(output_dir)
+                else:
+                    logger.error(
+                        f"Output directory {output_dir} already exists. Skipping."
+                    )
+                    tf.set_error(f"Output directory {output_dir} already exists.")
+                    continue
+
 
                 # copy folder to output directory
                 process_transfer(folder, output_dir)
@@ -150,7 +152,6 @@ def main():
                             datetime.now(),
                             database,
                         )
-                        tf.cleanup_transfer(appraisal_dir)
                     except Exception as e:
                         logger.error(
                             f"Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
@@ -159,12 +160,17 @@ def main():
                             f"DATABASE WRITE ERROR -- Failed to insert transfer for folder {folder} with Collection Identifier {primary_id}: {e}"
                         )
                         continue
+                    try:
+                        tf.cleanup_transfer(appraisal_dir)
+                    except Exception as e:
+                        logger.error(f"Error cleaning up transfer: {e}")
+                        tf.set_error(f"Failed to clean up transfer folder: {e}")
                 except bagit.BagValidationError as e:
                     logger.error(
                         "Transferred bag was invalid. Removing transferred data."
                     )
                     tf.set_error(
-                        f"Transferred bag {folder} was invalid. Removing transferred data... \n Error recorded: {e}"
+                        f"Transferred bag {folder} was invalid. Removing transferred data... \n See logfile for details."
                     )
                     os.rmdir(output_dir)
                     continue
