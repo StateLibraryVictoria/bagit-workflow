@@ -201,7 +201,7 @@ def test_error_file_data(invalid_trigger_file, id_parser):
     tf = TriggerFile(invalid_trigger_file, id_parser)
     tf.validate()
     file = f"{tf.get_directory()}.error"
-    expected = f"Collection identifier could not be parsed from folder title.\nError parsing metadata.\nSee logfile for more information."
+    expected = f"Collection identifier could not be parsed from folder title.\nError parsing metadata.\nSee logfile for more information.\n"
     with open(file, "r") as f:
         data = f.read()
     data = data.replace('\r\n','\n')
