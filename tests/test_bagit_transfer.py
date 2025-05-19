@@ -52,10 +52,12 @@ def existing_bag(stable_path):
     )
     yield bag
 
-
-def test_should_exit_if_no_dir():
-    with pytest.raises(SystemExit):
-        main()
+@pytest.fixture
+def invalid_bag(stable_path, existing_bag):
+    add_file = stable_path / "test_bag" / "data" / "file2.txt"
+    with open(add_file, 'w') as f:
+        f.write("Added to bag")
+    yield existing_bag
 
 
 def test_successful_run_bag(stable_path, existing_bag, mock_config, monkeypatch):
@@ -85,4 +87,34 @@ def test_successful_run_bag(stable_path, existing_bag, mock_config, monkeypatch)
         and os.path.exists(db)
         and len(in_transfer) == 0
         and os.path.exists(in_appraisal)
+    )
+
+def test_invalid_bag_handling(stable_path, invalid_bag, mock_config, monkeypatch):
+    #set up the paths and stage bag
+    transfer_dir = mock_config.get("TRANSFER_DIR")
+    archive_dir = mock_config.get("ARCHIVE_DIR")
+    appraisal_dir = mock_config.get("APPRAISAL_DIR")
+    shutil.move(str(invalid_bag), transfer_dir)
+    ok_file = os.path.join(transfer_dir, "test_bag.ok")
+    with open(ok_file, "w") as f:
+        f.write("")
+
+    # replace config with mock
+    monkeypatch.setattr("bagit_transfer.load_config", lambda: mock_config)
+    with pytest.raises(SystemExit):
+        main()
+
+    # outcome should be empty
+    outcome = os.path.join(archive_dir, "RA-9999-99", "t1", "bag-info.txt")
+    # transfer should have bag and error file
+    in_transfer = os.listdir(transfer_dir)
+    # appraisal should be empty
+    in_appraisal = os.path.join(appraisal_dir, "test_bag")
+    # error file should exist
+    error_file = os.path.join(transfer_dir, "test_bag.error")
+    assert(
+        not os.path.exists(outcome)
+        and len(in_transfer) == 2
+        and not os.path.exists(in_appraisal)
+        and os.path.exists(error_file)
     )
