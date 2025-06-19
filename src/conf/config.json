@@ -22,8 +22,5 @@
             "H\\d{2}(\\d\\d)?-\\d+",
             "COMY\\d{5}"
         ]
-    },
-    "parameterized_tests" {
-
     }
 }
