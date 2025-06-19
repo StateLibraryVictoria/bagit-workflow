@@ -21,6 +21,14 @@
             "(POL-)?\\d{3,}-slvdb",
             "H\\d{2}(\\d\\d)?-\\d+",
             "COMY\\d{5}"
+        ],
+        "normalisation_tests":[
+            "(MS)(\\d+)", 
+            "(SC)\\D?(\\d+)"
+        ],
+        "normalisation_joins":[
+            "-", 
+            ""
         ]
     }
 }

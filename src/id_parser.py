@@ -10,10 +10,12 @@ class IdParser:
         pattern_list -- list of regex with identifier patterns
     """
 
-    def __init__(self, valid_pattern: str, pattern_list: str):
+    def __init__(self, valid_pattern: str, pattern_list: str, normalisation_tests: str, normalisation_joins: str):
         self
         self.valid_pattern = valid_pattern
         self.pattern_list = pattern_list
+        self.normalisation_tests = normalisation_tests
+        self.normalisation_joins = normalisation_joins
 
     def validate_id(self, id: str) -> bool:
         """Returns True if submitted data matches valid ID pattern"""
@@ -26,8 +28,8 @@ class IdParser:
         id: str,
         default_regex: str = "[_\.]|\s",
         replace_with: str = "-",
-        tests: list = [r"(MS)(\d+)", r"(SC)\D?(\d+)"],
-        join_by: list = ["-", ""],
+        tests: list = None,
+        join_by: list = None,
     ) -> str:
         """Normalise based on patterns for easy searching.
         Defaults to replacing underscores, periods and whitespace with hyphens.
@@ -41,6 +43,11 @@ class IdParser:
         tests -- patterns with capturing groups to match and rejoin (default [r"(MS)(\d+)",r"(SC)\D?(\d+)"])
         join_by -- correlating delimiters for joins (default ["-",""])
         """
+        # if tests and join_by are blank, load from IdParser variables
+        if tests is None:
+            tests = self.normalisation_tests
+        if join_by is None:
+            join_by = self.normalisation_joins
         # check if id is a MS number.
         norm_id = norm_id = re.sub(default_regex, replace_with, id)
         if tests is not None and join_by is not None and ((len(tests) == len(join_by))):

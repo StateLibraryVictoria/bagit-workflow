@@ -31,9 +31,15 @@ class Config:
         else:
             identifier_pattern = "|".join(identifier_patterns)
 
+        ## normalisation patterns are used to fix common identifiers written in different ways
+        normalisation_patterns = id_parser.get("normalisation_tests")
+        normalisation_joins = id_parser.get("normalisation_joins")
+        logging.debug("Normalisation patterns: %s", normalisation_patterns)
+        logging.debug("Normalisation joinse: %s", normalisation_joins)
+
         logging.debug("Validation pattern: %s", validation_pattern)
         logging.debug("Identifier pattern: %s", identifier_pattern)
-        self.id_parser = IdParser(validation_pattern, identifier_pattern)
+        self.id_parser = IdParser(validation_pattern, identifier_pattern, normalisation_patterns, normalisation_joins)
 
     def get_id_parser(self):
         return self.id_parser
