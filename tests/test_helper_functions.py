@@ -1,4 +1,5 @@
 from src.helper_functions import *
+from src.config import Config
 import pytest
 import unicodedata
 
@@ -62,32 +63,9 @@ def existing_bag_trigger(tmp_path):
 
 @pytest.fixture
 def id_parser():
-    # Assumes the identifiers will be final value or followed by " ", "_" or "-".
-    final = "(?=[_-]|\\s|$)"
-    # Assumes identifier parts will be separated by "-", "." or "_".
-    sep = "[\\-\\._]?\\s?"
-    identifier_pattern = (
-        # SC numbers
-        f"(SC{sep}\\d{{4,}}{final})|"
-        # RA numbers
-        f"(RA{sep}\\d{{4}}{sep}\\d+{final})|"
-        # PA numbers
-        f"(PA{sep}\\d\\d)(\\d\\d)?({sep}\\d+{final})|"
-        # MS numbers
-        f"(MS{sep}\\d{{2,}}{final})|"
-        # capture case for PO numbers that should fail validation
-        f"(PO{sep}\\d+{sep}slvdb){final}|"
-        # Legacy purchase orders
-        f"(POL{sep})?(\\d{{3,}}{sep}slvdb){final}|"
-        # Current purchase orders
-        f"(POL{sep}\\d{{3,}}{final})|"
-        # H numbers
-        f"(H\\d\\d)(\\d\\d)?({sep}\\d+){final}|"
-        # COMY
-        f"(COMY\\d{{5}}){final}"
-    )
-    validation_pattern = r"SC\d{4,}|RA-\d{4}-\d+|PA-\d{2}-\d+|MS-?\d{2,}|POL-\d{3,}|(POL-)?\d{3,}-slvdb|H\d{2}(\d\d)?-\d+|COMY\d{5}"
-    return IdParser(validation_pattern, identifier_pattern)
+    config = Config(os.path.join("src","conf","test_config.json"))
+    id_parser = config.get_id_parser()
+    return id_parser
 
 
 @pytest.fixture
@@ -415,7 +393,7 @@ def test_validate_bag_at_no_manifest(existing_bag):
     assert result == (
         [SET_UUID_1],
         [
-            "Bag validation failed: manifest-sha256.txt exists in manifest but was not found on filesystem"
+            "Bag is incomplete: manifest-sha256.txt exists in manifest but was not found on filesystem"
         ],
     )
 
@@ -427,7 +405,7 @@ def test_validate_bag_at_no_baginfo(existing_bag):
         [],
         [
             "Bag UUID not present in bag-info.txt",
-            "Bag validation failed: bag-info.txt exists in manifest but was not found on filesystem",
+            "Bag is incomplete: bag-info.txt exists in manifest but was not found on filesystem",
         ],
     )
 
