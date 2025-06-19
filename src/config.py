@@ -1,4 +1,4 @@
-from src.helper_functions import IdParser
+from src.id_parser import IdParser
 import json
 
 class Config:
