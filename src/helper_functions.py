@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
 from src.shared_constants import *
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -568,12 +569,11 @@ def compute_manifest_hash(folder: str, target_manifest="manifest-sha256.txt") ->
 # bagit_transfer functions
 
 
-def load_id_parser(
-    identifier_pattern: str = IDENTIFIER_REGEX,
-    validation_pattern: str = VALIDATION_REGEX,
-) -> IdParser:
-    """Returns configured IdParser based on regex in shared_constants.py"""
-    return IdParser(validation_pattern, identifier_pattern)
+def load_id_parser() -> IdParser:
+    """Returns configured IdParser based on regex in src/conf/config.json"""
+    config = Config(os.path.join("src","conf","config.json"))
+    id_parser = config.get_id_parser()
+    return id_parser
 
 
 def get_source_org() -> str:
