@@ -10,7 +10,7 @@ class IdParser:
         pattern_list -- list of regex with identifier patterns
     """
 
-    def __init__(self, valid_pattern, pattern_list):
+    def __init__(self, valid_pattern: str, pattern_list: str):
         self
         self.valid_pattern = valid_pattern
         self.pattern_list = pattern_list
