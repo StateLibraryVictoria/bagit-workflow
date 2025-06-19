@@ -24,6 +24,36 @@ Filepaths for all environment variables should be set in a `.env` file. See `env
 Limitations: This process is designed to support processing of data compatible with a Windows filesystem. It cannot handle files with multiple filestreams.  
 **Warning** if using the script on a Linux server, file creation date metadata will not be preserved. 
 
+#### Configuring identifier parsing
+
+Identifiers can be configured using `src/conf/config.json` using the following layout:
+
+                {
+                        "id_parser" : {
+                                "sep": "[\\-\\._]?\\s?",
+                                "identifier_patterns": [
+                                ["(SC","\\d{4,}(?=[_-]|\\s|$))"]
+                                ],
+                                "validation_patterns":[
+                                "SC\\d{4,}",
+                                ],
+                                "normalisation_tests":[
+                                "(SC)\\D?(\\d+)"
+                                ],
+                                "normalisation_joins":[ 
+                                ""
+                                ]
+                        }
+                }
+
+The expected data for each key within `"id_parser"` is as follows:
+- `sep` - string regular expression containing characters used to separate id components
+- `identifier_patterns` - a list containing either complete regular expressions for each identifier type (which will be joined into an OR expression using `|`) or a list of lists which will be joined using the `sep` pattern before joining into a single OR expression.
+- `validation_patterns` - a list containing patterns that will be joined into an OR expression using `|`
+- `normalisation_tests` and `normalisation_joins` - are a paired list of group patterns which can be used to change the join behaviour to a set character in the list of `normalisation_joins`
+
+Currently parameterized tests are configured for SLV identifiers and will use `test_config.json` to avoid conflicts.
+
 #### Runner scripts
 
 - `bagit_transfer.py` : Bags data and transfers it to a location. Transfers and collections are recorded in a sqlite3 database.    
