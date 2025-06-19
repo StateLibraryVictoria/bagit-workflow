@@ -63,7 +63,7 @@ def existing_bag_trigger(tmp_path):
 
 @pytest.fixture
 def id_parser():
-    config = Config(os.path.join("src","conf","config.json"))
+    config = Config(os.path.join("src","conf","test_config.json"))
     id_parser = config.get_id_parser()
     return id_parser
 
