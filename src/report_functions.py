@@ -35,6 +35,10 @@ class Report:
     def build_basic_report(self, database: str, id: str = None) -> str:
         report = self._report_type.build_basic_report(database, id)
         return report
+    
+    def build_report_between(self, database: str, start, end: str = datetime.now().strftime('%Y-%m-%d')) -> str:
+        report = self._report_type.build_report_between(database, start, end)
+        return report
 
 
 class ValidationReport(ReportType):
@@ -66,16 +70,33 @@ class TransferReport(ReportType):
     Generates transfer reports
     """
 
-    def build_basic_report(self, transfer_db, id=None) -> str:
+    def _get_data(self, db, query) -> pd.DataFrame:
+        with get_db_connection(db) as con:
+            df = pd.read_sql_query(query, con)
+            df = self._tidy_transfer_df(df)
+        return df
+
+    def _build_html(self, df, title="Records of transfer") -> str:
         html_start = html_header("Transfer Report")
         html_body = "<body>"
-        with get_db_connection(transfer_db) as con:
-            df = pd.read_sql_query(f"SELECT * from transfers", con)
-            df = self._tidy_transfer_df(df)
-        html_body += "<h2>Records of transfer</h2>"
+        html_body += f"<h1>{title}</h1>"
         html_body += df.to_html()
         html_body += "</body></html>"
         return html_start + html_body
+
+
+    def build_basic_report(self, transfer_db, id=None) -> str:
+        df = self._get_data(transfer_db, "Select * from transfers")
+        return self._build_html(df)
+    
+    def build_report_between(self, transfer_db, start, end=datetime.now().strftime('%Y-%m-%d')) -> str:
+        """Specify a time bounding in the format YYYY-MM-DD
+        """
+        df = self._get_data(transfer_db, "Select * from transfers")
+        df['filter_date'] = pd.to_datetime(df['TransferDate'])
+        df_filtered = df[df['filter_date'].dt.strftime('%Y-%m-%d').between(start, end)]
+        df_final = df_filtered.drop('filter_date',axis=1)
+        return self._build_html(df_final, f"Records of transfer between {start} and {end}")
 
     def _round_up_units(self, value):
         if int(value) < 1024:
