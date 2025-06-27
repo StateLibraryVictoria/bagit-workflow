@@ -4,7 +4,7 @@ import json
 import sys
 import os
 
-headers = json.loads(os.getenv("REQUIRED_HEADERS"))
+# headers = json.loads(os.getenv("REQUIRED_HEADERS"))
 logger = logging.getLogger(__name__)
 
 # running filename
