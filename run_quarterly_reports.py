@@ -1,4 +1,5 @@
 import logging
+import shutil
 from datetime import datetime, timedelta
 from src.shared_constants import *
 from src.database_functions import *
@@ -22,6 +23,9 @@ def main():
     logging_dir = config.get("LOGGING_DIR")
     transfer_db = config.get("DATABASE")
     report_dir = config.get("REPORT_DIR")
+    archive_dir = config.get("ARCHIVE_DIR")
+    validation_db = config.get("VALIDATION_DB")
+    access_dir = config.get("TRANSFER_DIR")
 
     now =  datetime.now()
 
@@ -65,8 +69,9 @@ def main():
 
     html = report_builder.build_report_between(transfer_db, start_date, end_date)
 
+    transfer_report_filename = f"{report_title}_quarterly_transfer_report.html"
     transfer_report_file = os.path.join(
-        report_dir, f"{report_title}_quarterly_transfer_report.html"
+        report_dir, transfer_report_filename
     )
     try:
         with open(transfer_report_file, "a") as f:
@@ -74,6 +79,34 @@ def main():
             print(f"Transfer report written to: {transfer_report_file}")
     except Exception as e:
         logger.error(f"Failed to write report file to {transfer_report_file}: {e}")
+
+    
+    # Build validation report
+    try:
+        configure_validation_db(validation_db)
+    except sqlite3.OperationalError as e:
+        print(f"Error configuring database: {e}")
+        runfile_cleanup(logging_dir)
+
+    # run validation process and get id for report
+    validation_action_id = run_validation(validation_db, transfer_db, archive_dir)
+
+    # build a basic report and output to html.
+    report = Report(ValidationReport())
+    html = report.build_basic_report(validation_db, validation_action_id)
+
+    validation_report_filename = f"{report_title}_quarterly_validation_report.html"
+    validation_report_file = os.path.join(report_dir, validation_report_filename)
+    try:
+        with open(validation_report_file, "a") as f:
+            f.write(html)
+            print(f"Validation report written to: {validation_report_file}")
+    except Exception as e:
+        logger.error(f"Failed to write report file to {validation_report_file}: {e}")
+
+    ## Copy reports to access directory
+    shutil.copy2(transfer_report_file, os.path.join(access_dir, transfer_report_filename))
+    shutil.copy2(validation_report_file, os.path.join(access_dir, validation_report_filename))
 
     runfile_cleanup(logging_dir)
 
