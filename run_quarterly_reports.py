@@ -28,39 +28,48 @@ def main():
     access_dir = config.get("TRANSFER_DIR")
 
     now =  datetime.now()
+    # make sure it's the first of the month
+    now = datetime.strptime(now.strftime('%Y-%m-01'),'%Y-%m-%d')
 
     year = now.strftime('%Y')
     month = now.strftime('%m')
-    quater = "0"
-    if month=="07":
-        quater = "4"
-    elif month=="10":
-        quater = "1"
-    elif month=="01":
-        quater = "2"
-    elif month=="04":
-        quater = "3"
 
     start_date = now - timedelta(days=90) #this is a bit hacky but ok
     start_date = start_date.strftime('%Y-%m-01')
     print(f"Filtering report to dates after: {start_date}")
-    logging.info(start_date)
 
     # pandas is used to filter the between dates, which defualts to inclusive
     # as a result we need to set the end date to the final day of quater
     # this should be yesterday
-    end_date = now - timedelta(days=1)
-    end_date = end_date.strftime('%Y-%m-%d')
+    end = now - timedelta(days=1)
+    end_date = end.strftime('%Y-%m-%d')
 
-    report_title = f"{year}_Q{quater}"
+    if month=="07":
+        quater = "Q4"
+    elif month=="10":
+        quater = "Q1"
+    elif month=="01":
+        quater = "Q2"
+    elif month=="04":
+        quater = "Q3"
+    else:
+        end_month = end.strftime('%m')
+        quater = f"{month}-{end_month}"
+
+    report_title = f"{year}_{quater}"
 
     logfilename = f"{report_title}_quarterly_reports.log"
+
+    print(os.path.join(logging_dir, logfilename))
     logfile = os.path.join(logging_dir, logfilename)
     logging.basicConfig(
         filename=logfile,
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
+    logging.info("Started processing quarterly report for " + quater)
+    logging.info(f"Dates between {start_date} and {end_date}")
 
     runfile_check(logging_dir)
 
