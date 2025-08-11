@@ -260,6 +260,7 @@ def test_validate_id_false_for_invalid(id_parser, input, expected):
             ["12345-slvdb", "23456-slvdb", "34567-slvdb"],
         ),
         ("A folder COMY99999", ["COMY99999"]),
+        ("POL-12345_Name_something_20250505", ["POL-12345"]),
     ],
 )
 def test_find_id_in_folder(id_parser, input, expected):
