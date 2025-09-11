@@ -210,6 +210,8 @@ def test_not_ok_file_raises_exception(tmp_path, id_parser):
         ("H88-123", True),
         ("12345-slvdb", True),
         ("COMY99999", True),
+        ("ISSN-1234-1234",True),
+        ("ISSN-1234-123X",True)
     ],
 )
 def test_validate_id_true_for_valid(id_parser, input, expected):
@@ -235,7 +237,10 @@ def test_validate_id_true_for_valid(id_parser, input, expected):
         ("PA-9999-99", False),
         ("PO-12345-slvdb", False),
         ("PO-1234", False),
-        ("COMY9999", False)
+        ("COMY9999", False),
+        ("ISSN 1234-1234", False),
+        ("ISSN-1234-123", False),
+        ("ISSN: 1234-1234", False),
     ],
 )
 def test_validate_id_false_for_invalid(id_parser, input, expected):
@@ -261,6 +266,9 @@ def test_validate_id_false_for_invalid(id_parser, input, expected):
         ),
         ("A folder COMY99999", ["COMY99999"]),
         ("POL-12345_Name_something_20250505", ["POL-12345"]),
+        ("ISSN-1234-1234_Name_something_20250505", ["ISSN-1234-1234"]),
+        ("ISSN: 1234-1234_Name_something_20250505", ["ISSN-1234-1234"]),
+        ("ISSN 1234-123X_Name_something_20250505", ["ISSN-1234-123X"]),
     ],
 )
 def test_find_id_in_folder(id_parser, input, expected):
@@ -278,7 +286,13 @@ def test_find_id_in_folder(id_parser, input, expected):
         ("PA_9999_99", "PA-9999-99"),
         ("SC 12345", "SC12345"),
         ("SC12345", "SC12345"),
-        ("COMY99999","COMY99999")
+        ("COMY99999","COMY99999"),
+        ("ISSN: 1234-1234","ISSN-1234-1234"),
+        ("ISSN 1234-1234","ISSN-1234-1234"),
+        ("ISSN1234-1234","ISSN-1234-1234"),
+        ("ISSN-1234-1234","ISSN-1234-1234"),
+        ("ISSN-1234-123X","ISSN-1234-123X"),
+        ("ISSN 1234-123X","ISSN-1234-123X"),
     ],
 )
 def test_normalise_id(id_parser, input, expected):
