@@ -228,6 +228,16 @@ def main():
             name = os.path.basename(os.path.normpath(dir))
             files_only.loc[:,'CHECKED_PATH'] = files_only.loc[:,"FILE_PATH"].str.replace(to_replace,dir)
 
+            ## Check all the files in storage are in Droid report. 
+            for root, directory, files in os.walk(dir):
+                name_data = files_only.NAME.copy().to_list()
+                for f in files:
+                    if f not in name_data:
+                        errors.append(f"Manifest does not contain file: {f}")
+                    else:
+                        name_data.remove(f)
+
+
             fdf = files_only
 
             # generate hashes of files in current locations
