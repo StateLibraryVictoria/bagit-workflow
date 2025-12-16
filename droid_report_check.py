@@ -193,7 +193,7 @@ def main():
         logging.info(droid_report)
         if len(droid_report) == 0:
             logging.warning(f"No droid report in {dir}")
-            errors.append("No droid report in folder.")
+            make_error_file(dir,"No droid report in folder.")
 
         validated_reports = []
 
@@ -255,7 +255,7 @@ def main():
             all_file = os.path.join(report_dir, f'{name}_all_{strftime("%Y-%m-%d")}.csv')
             df2.to_csv(all_file)
             print("Report written to: " + all_file)
-            if len(df2_error) > 0:
+            if len(df2_error) > 0 or len(errors) > 0:
                 df2_read_error = df2_error[df2_error['CURRENT_MD5'].str.startswith("Error")]
                 df2_match_error = df2_error[~df2_error['CURRENT_MD5'].str.startswith("Error")]
                 read_error_file = os.path.join(report_dir, f'{name}_error_read_{strftime("%Y-%m-%d")}.csv')
@@ -292,8 +292,6 @@ def main():
             if len(errors) == 0:
                 validated_reports.append(r)
             
-        if len(validated_reports) == 0:
-            make_error_file(dir, ", ".join(errors))
         for report in validated_reports:
             droid_report.remove(report)
         
