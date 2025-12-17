@@ -28,6 +28,7 @@ def load_config() -> dict:
         "SOURCE_ORG": os.getenv("SOURCE_ORG"),
         "REPORT_DIR": os.getenv("REPORT_DIR"),
         "APPRAISAL_DIR": os.getenv("APPRAISAL_DIR"),
+        "DROID_OUTPUT_DIR": os.getenv("DROID_OUTPUT_DIR")
     }
     return config
 

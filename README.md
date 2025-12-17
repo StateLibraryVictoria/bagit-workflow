@@ -56,6 +56,7 @@ Currently parameterized tests are configured for SLV identifiers and will use `t
 
 #### Runner scripts
 
+- `droid_report_check.py` : Converts folders stage with `.ready` file, by validating a DROID report inside. Valid reports are moved to review directory and sets file to `.ok`. Otherwise the file is set to `.error` and the issues recorded.
 - `bagit_transfer.py` : Bags data and transfers it to a location. Transfers and collections are recorded in a sqlite3 database.    
 - `validate_transfers.py` : Runs validation over every bag in a directory. Each run and each check are recorded in a sqlite3 database. A HTML report is exported at the end.    
 - `transfer_report.py` : Generates a HTML report of all transfers in the database.
@@ -78,7 +79,7 @@ Example `.bat` script for empty file:
             for /D %%i in (*) do if not exist %%i.ok (
                 if not exist %%i.error (
                     if not exist %%i.processing (
-                        .> %%i.ok)))
+                        .> %%i.ready)))
 
 Example `.bat` script with metadata:
 
@@ -98,6 +99,8 @@ Example `.bat` script with metadata:
 #### Trigger file handling
 
 Staged transfers are handled based on the file extension, whether they have already been bagged, and whether they meet minimum validation requirements.
+
+Staff staging transfers create a trigger file with a `.ready` file extension. These will not be processed via the bagging workflow until they are converted to `.ok`. This can be done manually or automatically by checking a DROID report within the folder. 
 
 The `TriggerFile` class expects a `.ok` file submitted as a path. It performs basic validation checks:
 - Does the folder exist?
