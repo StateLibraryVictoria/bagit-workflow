@@ -5,11 +5,8 @@ import hashlib
 from time import strftime
 import json
 import sys
+from src.helper_functions import load_config
 
-transfer_dir = os.getenv("TRANSFER_DIR")
-logging_dir = os.getenv("LOGGING_DIR")
-output_directory = os.getenv("REPORT_DIR")
-droid_output_dir = os.getenv("DROID_OUTPUT_DIR")
 
 def getHash(path, root):
     hasher = hashlib.new('MD5')
@@ -49,7 +46,7 @@ def find_folder_path(original_path, example_file, current_directory):
         else:
             original_path = os.path.normpath(original_path.replace(os.path.basename(original_path),""))
 
-def make_error_file(directory, message="Error validating DROID report. Check the logs for more information."):
+def make_error_file(directory, transfer_dir, message="Error validating DROID report. Check the logs for more information."):
     print("Making error file")
     if not os.path.exists(directory):
         logging.warning(f"Doesn't exist {directory}")
@@ -76,7 +73,7 @@ def make_error_file(directory, message="Error validating DROID report. Check the
     except ValueError as e:
         logging.info(f"Path: {directory} and {transfer_dir} have no common path.")
 
-def make_ok_file(directory):
+def make_ok_file(directory, transfer_dir):
     try: 
         os.path.commonprefix([transfer_dir, directory])
         d = os.path.relpath(directory,transfer_dir)
@@ -91,7 +88,7 @@ def make_ok_file(directory):
             logging.info("Removing .ready file for validated folder.")
     except ValueError as e:
         logging.error(f"Error making ok file: {e}")
-        make_error_file(directory)
+        make_error_file(directory, transfer_dir, "Error making ok file")
     
 
 def handle_irregular_csv(file):
@@ -165,7 +162,12 @@ def load_csv(csv_file):
     return df
 
 def main():
-    
+    config = load_config()
+    transfer_dir = config.get("TRANSFER_DIR")
+    logging_dir = config.get("LOGGING_DIR")
+    output_directory = config.get("REPORT_DIR")
+    droid_output_dir = config.get("DROID_OUTPUT_DIR")
+
     logfilename = f"{strftime('%Y%m%d')}_check_DROID_report.log"
     logfile = os.path.join(logging_dir, logfilename)
 
@@ -193,7 +195,7 @@ def main():
         logging.info(droid_report)
         if len(droid_report) == 0:
             logging.warning(f"No droid report in {dir}")
-            make_error_file(dir,"No droid report in folder.")
+            make_error_file(dir, transfer_dir, "No droid report in folder.")
 
         validated_reports = []
 
@@ -222,7 +224,7 @@ def main():
             try:
                 to_replace = find_folder_path(root_path, example_file, dir)
             except Exception as e:
-                errors.append(f"Error: {e} - have files been renamed?")
+                make_error_file(dir, transfer_dir,f"Error: {e} - have files been renamed?")
                 logging.error(f"Error: {e} - have files been renamed?")
                 continue
             name = os.path.basename(os.path.normpath(dir))
@@ -232,7 +234,10 @@ def main():
             for root, directory, files in os.walk(dir):
                 name_data = files_only.NAME.copy().to_list()
                 for f in files:
-                    if f not in name_data:
+                    # don't check the droid report
+                    if f == r:
+                        continue
+                    elif f not in name_data:
                         errors.append(f"Manifest does not contain file: {f}")
                     else:
                         name_data.remove(f)
@@ -272,9 +277,8 @@ def main():
                     errors.append("File match errors identified")
                 else:
                     logging.info("No match errors identified")
-                make_error_file(dir, ", ".join(errors))
             else:
-                make_ok_file(dir)
+                make_ok_file(dir, transfer_dir)
                 logging.info("====SUCCESS: Data matches report!====")
                 logging.info("Moving DROID report to done folder.")
                 move_time = strftime("%Y%m%d%H%M%S")
@@ -290,7 +294,11 @@ def main():
                 print(f"Moved {csv_file} to {os.path.join(out_dir,r)}")
 
             if len(errors) == 0:
+                print("No errors, adding as valid report")
                 validated_reports.append(r)
+            else:
+                print("Making error file")
+                make_error_file(dir, transfer_dir, ", ".join(errors))
             
         for report in validated_reports:
             droid_report.remove(report)
