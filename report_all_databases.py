@@ -1,5 +1,6 @@
 import logging
 from src.database_functions import *
+from src.helper_functions import runfile_check, runfile_cleanup
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,9 @@ def main():
     logger.info(validation_db)
     logger.info(transfer_db)
 
+    database_dir = os.path.dirname(transfer_db)
+    runfile_check(database_dir)
+
     transfer_tables = ["Collections", "Transfers"]
     validation_tables = ["ValidationActions", "ValidationOutcome"]
     html = dump_database_tables_to_html(
@@ -52,6 +56,8 @@ def main():
             f.write(html)
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
+
+    runfile_cleanup(database_dir)
 
 
 if __name__ == "__main__":

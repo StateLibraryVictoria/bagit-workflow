@@ -17,7 +17,8 @@ def main():
     transfer_db = config.get("DATABASE")
     report_dir = config.get("REPORT_DIR")
 
-    runfile_check(logging_dir)
+    database_dir = os.path.dirname(transfer_db)
+    runfile_check(database_dir)
 
     logfilename = f"{time.strftime('%Y%m%d')}_bagit_validation_action.log"
     logfile = os.path.join(logging_dir, logfilename)
@@ -31,7 +32,7 @@ def main():
         configure_validation_db(validation_db)
     except sqlite3.OperationalError as e:
         print(f"Error configuring database: {e}")
-        runfile_cleanup(logging_dir)
+        runfile_cleanup(database_dir)
 
     # run validation process and get id for report
     validation_action_id = run_validation(validation_db, transfer_db, archive_dir)
@@ -49,7 +50,7 @@ def main():
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
-    runfile_cleanup(logging_dir)
+    runfile_cleanup(database_dir)
 
 
 if __name__ == "__main__":

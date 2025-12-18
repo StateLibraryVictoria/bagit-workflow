@@ -22,7 +22,8 @@ def main():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    runfile_check(logging_dir)
+    database_dir = os.path.dirname(transfer_db)
+    runfile_check(database_dir)
 
     report_builder = Report(TransferReport())
 

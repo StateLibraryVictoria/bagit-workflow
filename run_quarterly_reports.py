@@ -71,7 +71,8 @@ def main():
     logging.info("Started processing quarterly report for " + quater)
     logging.info(f"Dates between {start_date} and {end_date}")
 
-    runfile_check(logging_dir)
+    database_dir = os.path.dirname(transfer_db)
+    runfile_check(database_dir)
 
     # Build transfer report
     report_builder = Report(TransferReport())
@@ -95,7 +96,7 @@ def main():
         configure_validation_db(validation_db)
     except sqlite3.OperationalError as e:
         print(f"Error configuring database: {e}")
-        runfile_cleanup(logging_dir)
+        runfile_cleanup(database_dir)
 
     # run validation process and get id for report
     validation_action_id = run_validation(validation_db, transfer_db, archive_dir)
@@ -117,7 +118,7 @@ def main():
     shutil.copy2(transfer_report_file, os.path.join(access_dir, transfer_report_filename))
     shutil.copy2(validation_report_file, os.path.join(access_dir, validation_report_filename))
 
-    runfile_cleanup(logging_dir)
+    runfile_cleanup(database_dir)
 
 
 if __name__ == "__main__":
