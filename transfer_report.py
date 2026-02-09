@@ -39,7 +39,7 @@ def main():
     except Exception as e:
         logger.error(f"Failed to write report file to {report_file}: {e}")
 
-    runfile_cleanup(logging_dir)
+    runfile_cleanup(database_dir)
 
 
 if __name__ == "__main__":
