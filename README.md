@@ -223,6 +223,20 @@ Integrity checks are tracked using a separate database with the following tables
 **Entity Relationship Diagram**   
 ![Integrity Checking Entity Relationship Diagram](docs/Bagit-Workflow-Integrity-ER-Diagram.jpg)
 
+### Updating Collection Identifier
+
+If a valid but incorrect collection identifier is submitted with a bag, it can be corrected given the following caveats:  
+- No valid bags have been submitted to the same collection identifier after the mislabelled bag. 
+
+1. Create a backup copy of the databases.
+2. Configure the required environment variables including: `BAG_UUID` - the UUID for the bag requiring updates, `OLD_ID` - the incorrectly recorded identifier, `NEW_ID` - the correct identifier. 
+3. Run the script `update_collection_id.py`. 
+4. Review the details returned by the script. Confirm that the identifers are as expected. Note if there are any subsequent bags which may also need updates.
+5. Enter `Y` to continue or any other key to cancel.
+6. Once complete, confirm the data has been moved to the appropriate location on network and that the database displays as expected. 
+7. Move a copy of the resulting logfile to the eProvenance file for the collection. 
+
+
 ### Testing
 
 Some tests have been created for:
