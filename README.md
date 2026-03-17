@@ -236,6 +236,7 @@ If a valid but incorrect collection identifier is submitted with a bag, it can b
 6. Once complete, confirm the data has been moved to the appropriate location on network and that the database displays as expected. 
 7. Move a copy of the resulting logfile to the eProvenance file for the collection. 
 
+Note that this process does not validate the new identifiers against existing patterns. 
 
 ### Testing
 
