@@ -31,8 +31,32 @@ def simple_transfer(mock_config):
     )
 
 
+@pytest.fixture
+def whitespace_transfer(mock_config):
+    staging = mock_config.get("TRANSFER_DIR")
+    shutil.copytree(
+        os.path.join(os.getcwd(), "tests", "data", "case-2"),
+        staging,
+        dirs_exist_ok=True,
+    )
+
+
 # successful validation run
 def test_simple_transfer_is_ok(tmp_path, mock_config, simple_transfer, monkeypatch):
+    transfer_dir = os.path.join(tmp_path, "transfer")
+
+    # set config
+    monkeypatch.setattr("droid_report_check.load_config", lambda: mock_config)
+    # run main
+    main()
+
+    expected = os.path.join(transfer_dir, "droid-test.ok")
+    assert os.path.exists(expected)
+
+
+def test_transfer_with_leading_whitespace_is_ok(
+    tmp_path, mock_config, whitespace_transfer, monkeypatch
+):
     transfer_dir = os.path.join(tmp_path, "transfer")
 
     # set config
