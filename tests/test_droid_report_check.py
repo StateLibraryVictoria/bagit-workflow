@@ -25,7 +25,9 @@ def mock_config(tmp_path):
 def simple_transfer(mock_config):
     staging = mock_config.get("TRANSFER_DIR")
     shutil.copytree(
-        os.path.join(os.getcwd(), "tests", "data"), staging, dirs_exist_ok=True
+        os.path.join(os.getcwd(), "tests", "data", "case-1"),
+        staging,
+        dirs_exist_ok=True,
     )
 
 
