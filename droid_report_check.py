@@ -5,6 +5,7 @@ import hashlib
 from time import strftime
 import sys
 from src.helper_functions import load_config
+from src.droid_parser import DroidCsvParser, DroidReport
 
 
 def getHash(path, root):
@@ -21,47 +22,6 @@ def getHash(path, root):
     except Exception as e:
         outcome = f"Error getting hash: {e}"
     return outcome
-
-
-def check_droid_headers(current_headers: list) -> bool:
-    expected = [
-        "ID",
-        "PARENT_ID",
-        "URI",
-        "FILE_PATH",
-        "NAME",
-        "METHOD",
-        "STATUS",
-        "SIZE",
-        "TYPE",
-        "EXT",
-        "LAST_MODIFIED",
-        "EXTENSION_MISMATCH",
-        "MD5_HASH",
-    ]
-    missing = []
-    for c in expected:
-        if c not in current_headers:
-            missing.append(c)
-    if len(missing) > 0:
-        logging.warning(f"Headers not matched in report: {';'.join(missing)}")
-        return False
-    else:
-        return True
-
-
-def find_folder_path(original_path, example_file, current_directory):
-    while True:
-        new_path = example_file.replace(original_path, current_directory)
-        if os.path.exists(new_path):
-            return original_path
-        elif len(original_path) <= 3:
-            print(f"Unable to find file {example_file} in current location.")
-            raise ValueError(f"Unable to find file {example_file} in current location.")
-        else:
-            original_path = os.path.normpath(
-                original_path.replace(os.path.basename(original_path), "")
-            )
 
 
 def make_error_file(
@@ -114,42 +74,6 @@ def make_ok_file(directory, transfer_dir):
         make_error_file(directory, transfer_dir, "Error making ok file")
 
 
-def handle_irregular_csv(file):
-    # this is a bit hackey :(
-    with open(file, "r", encoding="utf-8") as f:
-        longest = 0
-        # split assuming we have quoated data and commas
-        data = [line.split('","') for line in f]
-
-        # find the longest line
-        for line in data:
-            if len(line) > longest:
-                longest = len(line)
-
-        # tidy column names
-        col_names = [x.replace('"', "").replace("\n", "") for x in data[0]]
-
-        # add column names for extra columns
-        for i in range(len(col_names), longest):
-            col_names.append(f"Column {i+1}")
-        data[0] = col_names
-
-        # add blank entries for any other short columns
-        for i in range(len(data)):
-            if len(data[i]) < longest:
-                to_add = [""] * (longest - len(data[i]))
-                data[i].extend(to_add)
-        col_names = data[0]
-        data = data[1:]
-
-        # create indexed dictionary and load dataframe
-        total = {}
-        for i in range(longest):
-            total.update({str(i): data[i]})
-        df = pd.DataFrame.from_dict(total, orient="index", columns=col_names)
-        return df
-
-
 def load_directories(dir):
     if dir is None:
         logging.error("No transfer directory recorded.")
@@ -169,22 +93,6 @@ def load_directories(dir):
     dir_list = [os.path.join(dir, x) for x in just_ready]
     logging.info("Final list of directories to be processed: " + ", ".join(dir_list))
     return dir_list
-
-
-def load_csv(csv_file):
-    readerror = False
-    logging.info(f"Checking report: {csv_file}")
-    try:
-        df = pd.read_csv(csv_file)
-    except Exception as e:
-        logging.error(f"Error parsing as dataframe: {e}")
-        readerror = True
-        # continue
-
-    if readerror:
-        df = handle_irregular_csv(csv_file)
-
-    return df
 
 
 def main():
@@ -228,41 +136,19 @@ def main():
         for r in droid_report:
             logging.info(f"Processing droid report: {r}")
             csv_file = os.path.join(dir, r)
-            df = load_csv(csv_file)
+
+            parser = DroidCsvParser()
+            dr = parser.get_droid_report(csv_file, dir)
 
             # validate as a DROID report by checking expected headers
-            cols = df.head()
-            if not check_droid_headers(cols):
+            if not dr.check_droid_headers():
                 continue
 
-            # DROID report store absolute paths at time of generation
-            # script tries to find a legit path to the files
-            root_path = df.iloc[0].FILE_PATH
-            # drop folders
-            files_only = df[df["TYPE"] != "Folder"]
-            rows = len(files_only.index)
-            logging.info(
-                f"Dropping folders - reducing manifest size from {len(df.index)} to {rows}, "
-            )
-            # drop items inside archive formats
-            files_only = files_only[files_only["URI"].str.startswith("file")]
-            logging.info(
-                f"Dropping files within archive formats - reducing manifest size from {rows} to {len(files_only.index)}"
-            )
-            example_file = files_only.iloc[0].FILE_PATH
-
-            try:
-                to_replace = find_folder_path(root_path, example_file, dir)
-            except Exception as e:
-                make_error_file(
-                    dir, transfer_dir, f"Error: {e} - have files been renamed?"
-                )
-                logging.error(f"Error: {e} - have files been renamed?")
+            files_only = dr.df
+            errors = dr.errors
+            if len(errors) > 0:
+                make_error_file(dir, transfer_dir, ",".join(errors))
                 continue
-            name = os.path.basename(os.path.normpath(dir))
-            files_only.loc[:, "CHECKED_PATH"] = files_only.loc[
-                :, "FILE_PATH"
-            ].str.replace(to_replace, dir)
 
             ## Check all the files in storage are in Droid report.
             for root, directory, files in os.walk(dir):
