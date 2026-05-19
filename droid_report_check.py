@@ -308,8 +308,7 @@ def main():
                 make_ok_file(dir, transfer_dir)
                 logging.info("====SUCCESS: Data matches report!====")
                 logging.info("Moving DROID report to done folder.")
-                move_time = strftime("%Y%m%d%H%M%S")
-                out_dir = os.path.join(droid_output_dir, move_time)
+                out_dir = os.path.join(droid_output_dir, name)
                 if not os.path.exists(out_dir):
                     os.mkdir(out_dir)
                     increment = 0
