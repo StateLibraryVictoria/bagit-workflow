@@ -166,6 +166,6 @@ def test_leading_whitespace_filename_is_ok(
     # run main
     main()
 
-    expected = os.path.join(transfer_dir, "droid-test.ok")
+    expected = os.path.join(transfer_dir, "droid-whitespace-test.ok")
     logging.error(os.listdir(transfer_dir))
     assert os.path.exists(expected)
