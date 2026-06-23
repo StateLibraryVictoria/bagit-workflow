@@ -145,7 +145,6 @@ def load_csv(csv_file: str) -> pd.DataFrame:
                 "PARENT_ID",
                 "URI",
                 "FILE_PATH",
-                "NAME",
                 "METHOD",
                 "STATUS",
                 "SIZE",
@@ -206,6 +205,8 @@ def main():
             df = load_csv(csv_file)
             logging.info(df)
             logging.info(df.size)
+            df["NAME"] = df["FILE_PATH"].apply(os.path.basename)
+            logging.error(df["NAME"])
 
             # validate as a DROID report by checking expected headers
             cols = df.head()
